@@ -9,51 +9,37 @@ import {
   Text,
   View,
 } from "react-native";
+import { router } from "expo-router";
 
-import {
-  bytesToHex,
-  connectWallet,
-  signMessage,
-  type ConnectedAccount,
-} from "./src/mwaClient";
+import { bytesToHex } from "../src/mwaClient";
+import { useWallet } from "../src/walletContext";
 
-/**
- * Day 1 spike screen: prove Mobile Wallet Adapter connect + sign works
- * end-to-end on the Seeker (Seed Vault) and on a standard Android phone
- * (fallback wallet app). Nothing else in the app gets built until this
- * works reliably — see PLAN.md.
- */
-export default function App() {
-  const [account, setAccount] = useState<ConnectedAccount | null>(null);
+export default function HomeScreen() {
+  const { account, connecting, connect, signMessage } = useWallet();
   const [signatureHex, setSignatureHex] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [signing, setSigning] = useState(false);
   const [log, setLog] = useState<string[]>([]);
 
   const appendLog = (line: string) =>
     setLog((prev) => [`${new Date().toLocaleTimeString()}  ${line}`, ...prev]);
 
   const handleConnect = async () => {
-    setBusy(true);
     try {
       appendLog("Opening MWA session — launching wallet app...");
-      const acct = await connectWallet();
-      setAccount(acct);
+      const acct = await connect();
       appendLog(`Connected: ${acct.publicKey.toBase58()}`);
     } catch (err) {
       appendLog(`Connect failed: ${String(err)}`);
       Alert.alert("Connect failed", String(err));
-    } finally {
-      setBusy(false);
     }
   };
 
-  const handleSign = async () => {
-    if (!account) return;
-    setBusy(true);
+  const handleSignTest = async () => {
+    setSigning(true);
     try {
       const message = `CHAINWITNESS_TEST_${Date.now()}`;
       appendLog(`Requesting signature for: ${message}`);
-      const sig = await signMessage(account, message);
+      const sig = await signMessage(message);
       const hex = bytesToHex(sig);
       setSignatureHex(hex);
       appendLog(`Signed. Signature (hex): ${hex.slice(0, 24)}...`);
@@ -61,17 +47,17 @@ export default function App() {
       appendLog(`Sign failed: ${String(err)}`);
       Alert.alert("Sign failed", String(err));
     } finally {
-      setBusy(false);
+      setSigning(false);
     }
   };
+
+  const busy = connecting || signing;
 
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.title}>ChainWitness — MWA Spike</Text>
         <Text style={styles.subtitle}>
-          Day 1 goal: connect a wallet and sign a message via Mobile Wallet
-          Adapter. Devnet only.
+          Hardware-signed proof of presence. Devnet only.
         </Text>
 
         <View style={styles.card}>
@@ -82,7 +68,7 @@ export default function App() {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.label}>Last signature</Text>
+          <Text style={styles.label}>Last test signature</Text>
           <Text style={styles.value} numberOfLines={2}>
             {signatureHex ?? "None yet"}
           </Text>
@@ -100,8 +86,15 @@ export default function App() {
         <View style={styles.buttonRow}>
           <Button
             title="Sign Test Message"
-            onPress={handleSign}
+            onPress={handleSignTest}
             disabled={busy || !account}
+          />
+        </View>
+        <View style={styles.buttonRow}>
+          <Button
+            title="New Post →"
+            onPress={() => router.push("/capture")}
+            disabled={!account}
           />
         </View>
 
@@ -119,7 +112,6 @@ export default function App() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#0d0d12" },
   container: { padding: 20, paddingBottom: 60 },
-  title: { fontSize: 22, fontWeight: "700", color: "#fff", marginBottom: 4 },
   subtitle: { fontSize: 13, color: "#9a9aa8", marginBottom: 20 },
   card: {
     backgroundColor: "#17171f",
