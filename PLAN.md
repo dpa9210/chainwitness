@@ -33,8 +33,11 @@ itself couldn't be shown a screen. Never claim "unfakeable."
       end-to-end against Phantom on real hardware.
 - [ ] Daily prompt notification (can be a fixed/randomized local notification
       for demo purposes — doesn't need a server-side scheduler for v1).
-- [ ] In-app camera capture (no gallery picker).
-- [ ] Local hash of image + timestamp, signed by wallet via MWA.
+- [x] In-app camera capture (no gallery picker).
+- [x] Local hash of image + timestamp, signed by wallet via MWA.
+      **Built 2026-09-27**: capture → SHA-256 hash → MWA signature works in
+      the app (`app/capture.tsx`); not yet verified on the Seeker device or
+      wired to a backend/on-chain record — that's next.
 - [ ] Backend endpoint (Vercel) that accepts the signed payload, verifies the
       signature against the claimed pubkey, stores the post record.
 - [ ] On-chain record per post: a memo-program transaction (or minimal
@@ -66,7 +69,7 @@ itself couldn't be shown a screen. Never claim "unfakeable."
 | Day | Focus |
 |---|---|
 | 1 | ✅ **Spike done**: Expo dev build scaffold, MWA wallet connect + message signing verified working (Phantom, real device). |
-| 2 | Camera capture screen + local hashing. Backend skeleton on Vercel (post endpoint, signature verification). |
+| 2 | ✅ Camera capture screen + local SHA-256 hashing + MWA signing built (needs on-device verification). Backend skeleton on Vercel is next. |
 | 3 | Wire capture → sign → submit-to-backend → memo tx on devnet. First end-to-end post. |
 | 4 | Feed screen (read posts from backend), wallet badges, Genesis Token check. |
 | 5 | Tip flow (SOL transfer via MWA). Local daily-prompt notification. Polish pass on UI. |
