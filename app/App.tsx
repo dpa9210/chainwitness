@@ -51,7 +51,7 @@ export default function App() {
     if (!account) return;
     setBusy(true);
     try {
-      const message = `PROOF_OF_REAL_TEST_${Date.now()}`;
+      const message = `CHAINWITNESS_TEST_${Date.now()}`;
       appendLog(`Requesting signature for: ${message}`);
       const sig = await signMessage(account, message);
       const hex = bytesToHex(sig);
@@ -68,7 +68,7 @@ export default function App() {
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.title}>Proof of Real — MWA Spike</Text>
+        <Text style={styles.title}>ChainWitness — MWA Spike</Text>
         <Text style={styles.subtitle}>
           Day 1 goal: connect a wallet and sign a message via Mobile Wallet
           Adapter. Devnet only.

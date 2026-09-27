@@ -18,8 +18,8 @@ import {
 } from "@solana-mobile/mobile-wallet-adapter-protocol-web3js";
 
 const APP_IDENTITY = {
-  name: "Proof of Real",
-  uri: "https://proofofreal.app",
+  name: "ChainWitness",
+  uri: "https://chainwitness.app",
   icon: "favicon.ico",
 };
 
