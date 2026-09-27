@@ -27,8 +27,10 @@ itself couldn't be shown a screen. Never claim "unfakeable."
 
 ### Must ship (Tier A — the actual submission)
 - [ ] Android APK, builds and installs on both phones.
-- [ ] Wallet connect via Mobile Wallet Adapter (Seed Vault on Seeker, fallback
+- [x] Wallet connect via Mobile Wallet Adapter (Seed Vault on Seeker, fallback
       wallet app — e.g. Phantom/Solflare — on the secondary phone, devnet).
+      **Verified 2026-09-27**: connect + message signing confirmed working
+      end-to-end against Phantom on real hardware.
 - [ ] Daily prompt notification (can be a fixed/randomized local notification
       for demo purposes — doesn't need a server-side scheduler for v1).
 - [ ] In-app camera capture (no gallery picker).
@@ -63,7 +65,7 @@ itself couldn't be shown a screen. Never claim "unfakeable."
 
 | Day | Focus |
 |---|---|
-| 1 | **Spike**: Expo dev build scaffold, MWA wallet connect + message signing working on the Seeker. This is the go/no-go checkpoint for the whole build. |
+| 1 | ✅ **Spike done**: Expo dev build scaffold, MWA wallet connect + message signing verified working (Phantom, real device). |
 | 2 | Camera capture screen + local hashing. Backend skeleton on Vercel (post endpoint, signature verification). |
 | 3 | Wire capture → sign → submit-to-backend → memo tx on devnet. First end-to-end post. |
 | 4 | Feed screen (read posts from backend), wallet badges, Genesis Token check. |
