@@ -2,224 +2,327 @@ import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Button,
-  SafeAreaView,
-  ScrollView,
+  FlatList,
+  Linking,
+  Pressable,
+  RefreshControl,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { Image } from "expo-image";
 import { router, useFocusEffect } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { PublicKey } from "@solana/web3.js";
+import { Ionicons } from "@expo/vector-icons";
 
+import { fetchFeed, type FeedPost } from "../src/api";
 import { toFriendlyMessage } from "../src/friendlyError";
-import { bytesToHex } from "../src/mwaClient";
-import { getBalanceSol, requestDevnetAirdrop } from "../src/solanaClient";
+import { DEFAULT_TIP_LAMPORTS, explorerUrl } from "../src/solanaClient";
 import { useWallet } from "../src/walletContext";
 
-export default function HomeScreen() {
-  const { account, connecting, connect, signMessage } = useWallet();
-  const [signatureHex, setSignatureHex] = useState<string | null>(null);
-  const [signing, setSigning] = useState(false);
-  const [balance, setBalance] = useState<number | null>(null);
-  const [checkingBalance, setCheckingBalance] = useState(false);
-  const [airdropping, setAirdropping] = useState(false);
-  const [log, setLog] = useState<string[]>([]);
+const TIP_SOL_LABEL = (DEFAULT_TIP_LAMPORTS / 1_000_000_000).toString();
+const BOTTOM_BAR_HEIGHT = 88;
 
-  const appendLog = (line: string) =>
-    setLog((prev) => [`${new Date().toLocaleTimeString()}  ${line}`, ...prev]);
+function shortAddress(address: string): string {
+  return `${address.slice(0, 4)}…${address.slice(-4)}`;
+}
 
-  const refreshBalance = useCallback(async () => {
-    if (!account) return;
-    setCheckingBalance(true);
-    try {
-      const sol = await getBalanceSol(account.publicKey);
-      setBalance(sol);
-    } catch (err) {
-      appendLog(`Balance check failed: ${String(err)}`);
-    } finally {
-      setCheckingBalance(false);
+type TipStatus = "idle" | "sending" | "sent" | "failed";
+
+/**
+ * One full-screen post — the "page" in the TikTok-style vertical pager.
+ * The photo fills the screen; everything else is an overlay on top of it,
+ * positioned to clear the persistent top/bottom bars (siblings in the
+ * parent, not part of this item, so they never scroll away).
+ */
+function PostPage({ post, height }: { post: FeedPost; height: number }) {
+  const { account, tip } = useWallet();
+  const [tipStatus, setTipStatus] = useState<TipStatus>("idle");
+  const [tipSignature, setTipSignature] = useState<string | null>(null);
+
+  const isOwnPost = account?.publicKey.toBase58() === post.authorPubkey;
+
+  const handleTip = async () => {
+    if (!account) {
+      Alert.alert(
+        "Connect a wallet",
+        "Connect a wallet in Settings before tipping.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Go to Settings", onPress: () => router.push("/settings") },
+        ],
+      );
+      return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [account?.publicKey.toBase58()]);
-
-  // Refetch every time this screen comes into focus — covers returning
-  // here after a successful post (balance just dropped by the tx fee) and
-  // after topping up via an external faucet while this screen was already
-  // mounted underneath. A plain useEffect on mount alone would miss both:
-  // it only reacts to `account` changing, not to revisiting the screen.
-  useFocusEffect(
-    useCallback(() => {
-      refreshBalance();
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [account?.publicKey.toBase58()]),
-  );
-
-  const handleConnect = async () => {
+    setTipStatus("sending");
     try {
-      appendLog("Opening MWA session — launching wallet app...");
-      const acct = await connect();
-      appendLog(`Connected: ${acct.publicKey.toBase58()}`);
+      const sig = await tip(new PublicKey(post.authorPubkey));
+      setTipSignature(sig);
+      setTipStatus("sent");
     } catch (err) {
-      appendLog(`Connect failed: ${String(err)}`);
-      Alert.alert("Couldn't connect", toFriendlyMessage(err));
+      setTipStatus("failed");
+      Alert.alert("Tip failed", toFriendlyMessage(err));
     }
   };
-
-  const handleAirdrop = async () => {
-    if (!account) return;
-    setAirdropping(true);
-    try {
-      appendLog("Requesting 1 devnet SOL airdrop...");
-      await requestDevnetAirdrop(account.publicKey);
-      appendLog("Airdrop confirmed.");
-      await refreshBalance();
-    } catch (err) {
-      appendLog(`Airdrop failed: ${String(err)}`);
-      Alert.alert("Airdrop didn't go through", toFriendlyMessage(err));
-    } finally {
-      setAirdropping(false);
-    }
-  };
-
-  const handleSignTest = async () => {
-    setSigning(true);
-    try {
-      const message = `CHAINWITNESS_TEST_${Date.now()}`;
-      appendLog(`Requesting signature for: ${message}`);
-      const sig = await signMessage(message);
-      const hex = bytesToHex(sig);
-      setSignatureHex(hex);
-      appendLog(`Signed. Signature (hex): ${hex.slice(0, 24)}...`);
-    } catch (err) {
-      appendLog(`Sign failed: ${String(err)}`);
-      Alert.alert("Couldn't sign", toFriendlyMessage(err));
-    } finally {
-      setSigning(false);
-    }
-  };
-
-  const busy = connecting || signing;
-  const needsFunds = balance !== null && balance <= 0;
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.subtitle}>
-          Hardware-signed proof of presence. Devnet only.
-        </Text>
+    <View style={{ height, width: "100%" }}>
+      <Image
+        source={post.imageUrl}
+        style={StyleSheet.absoluteFill}
+        contentFit="cover"
+        transition={150}
+      />
 
-        <View style={styles.card}>
-          <Text style={styles.label}>Wallet</Text>
-          <Text style={styles.value}>
-            {account ? account.publicKey.toBase58() : "Not connected"}
-          </Text>
+      {/* Bottom-left: author + badge + timestamp + proof link */}
+      <View style={[styles.bottomLeft, { bottom: BOTTOM_BAR_HEIGHT + 24 }]}>
+        <View style={styles.authorRow}>
+          <Text style={styles.author}>{shortAddress(post.authorPubkey)}</Text>
+          {post.hasSgt && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>Seeker ✓</Text>
+            </View>
+          )}
         </View>
+        <Text style={styles.timestamp}>
+          {new Date(post.capturedAtMs).toLocaleString()}
+        </Text>
+        <Pressable onPress={() => Linking.openURL(explorerUrl(post.txSignature))}>
+          <Text style={styles.link}>View proof on Explorer →</Text>
+        </Pressable>
+      </View>
 
-        {account && (
-          <View style={styles.card}>
-            <View style={styles.balanceRow}>
-              <Text style={styles.label}>Devnet balance</Text>
-              <Text style={styles.refreshLink} onPress={refreshBalance}>
-                ↻ Refresh
+      {/* Right-side action stack: tip button, plus a link once sent */}
+      {!isOwnPost && (
+        <View style={[styles.rightStack, { bottom: BOTTOM_BAR_HEIGHT + 24 }]}>
+          <Pressable
+            style={styles.actionButton}
+            onPress={handleTip}
+            disabled={tipStatus === "sending" || tipStatus === "sent"}
+          >
+            {tipStatus === "sending" ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Ionicons
+                name={tipStatus === "sent" ? "checkmark-circle" : "cash-outline"}
+                size={30}
+                color={tipStatus === "sent" ? "#7ef29c" : "#fff"}
+              />
+            )}
+          </Pressable>
+          <Text style={styles.actionLabel}>
+            {tipStatus === "sent" ? "Tipped" : `Tip ${TIP_SOL_LABEL}`}
+          </Text>
+          {tipStatus === "sent" && tipSignature && (
+            <Pressable onPress={() => Linking.openURL(explorerUrl(tipSignature))}>
+              <Text style={styles.actionSubLink}>view →</Text>
+            </Pressable>
+          )}
+        </View>
+      )}
+    </View>
+  );
+}
+
+export default function FeedScreen() {
+  const insets = useSafeAreaInsets();
+  const [posts, setPosts] = useState<FeedPost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pageHeight, setPageHeight] = useState<number | null>(null);
+
+  const load = useCallback(async (isRefresh: boolean) => {
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
+    setError(null);
+    try {
+      setPosts(await fetchFeed());
+    } catch (err) {
+      setError(toFriendlyMessage(err));
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      load(false);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []),
+  );
+
+  return (
+    <View
+      style={styles.safe}
+      onLayout={(e) => setPageHeight(e.nativeEvent.layout.height)}
+    >
+      {loading || pageHeight === null ? (
+        <View style={styles.centered}>
+          <ActivityIndicator color="#fff" />
+        </View>
+      ) : (
+        <FlatList
+          data={posts}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => <PostPage post={item} height={pageHeight} />}
+          pagingEnabled
+          showsVerticalScrollIndicator={false}
+          decelerationRate="fast"
+          snapToInterval={pageHeight}
+          getItemLayout={(_, index) => ({
+            length: pageHeight,
+            offset: pageHeight * index,
+            index,
+          })}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => load(true)}
+              tintColor="#fff"
+            />
+          }
+          ListEmptyComponent={
+            <View style={[styles.centered, { height: pageHeight }]}>
+              <Text style={styles.emptyText}>
+                {error ?? "No posts yet. Be the first to post."}
               </Text>
             </View>
-            <Text style={styles.value}>
-              {checkingBalance
-                ? "Checking…"
-                : balance !== null
-                  ? `${balance} SOL`
-                  : "Unknown"}
-            </Text>
-            {needsFunds && (
-              <Text style={styles.warning}>
-                0 SOL — posting will fail (can't pay the transaction fee).
-                Tap below to airdrop devnet SOL, or tap Refresh if you just
-                topped up elsewhere.
-              </Text>
-            )}
-          </View>
-        )}
+          }
+        />
+      )}
 
-        <View style={styles.card}>
-          <Text style={styles.label}>Last test signature</Text>
-          <Text style={styles.value} numberOfLines={2}>
-            {signatureHex ?? "None yet"}
-          </Text>
-        </View>
+      {/* Persistent top bar */}
+      <View style={[styles.topBar, { paddingTop: insets.top + 10 }]}>
+        <Text style={styles.wordmark}>ChainWitness</Text>
+      </View>
 
-        {(busy || airdropping) && <ActivityIndicator style={styles.spinner} />}
+      {/* Persistent bottom bar — the TikTok-style tab row */}
+      <View
+        style={[
+          styles.bottomBar,
+          { height: BOTTOM_BAR_HEIGHT + insets.bottom, paddingBottom: insets.bottom },
+        ]}
+      >
+        <Pressable style={styles.tabButton} onPress={() => load(true)}>
+          <Ionicons name="home" size={26} color="#fff" />
+        </Pressable>
 
-        <View style={styles.buttonRow}>
-          <Button
-            title={account ? "Reconnect" : "Connect Wallet"}
-            onPress={handleConnect}
-            disabled={busy}
-          />
-        </View>
-        {account && (
-          <View style={styles.buttonRow}>
-            <Button
-              title="Get Devnet SOL (airdrop)"
-              onPress={handleAirdrop}
-              disabled={airdropping}
-            />
-          </View>
-        )}
-        <View style={styles.buttonRow}>
-          <Button
-            title="Sign Test Message"
-            onPress={handleSignTest}
-            disabled={busy || !account}
-          />
-        </View>
-        <View style={styles.buttonRow}>
-          <Button
-            title="New Post →"
-            onPress={() => router.push("/capture")}
-            disabled={!account}
-          />
-        </View>
-        <View style={styles.buttonRow}>
-          <Button title="View Feed →" onPress={() => router.push("/feed")} />
-        </View>
+        <Pressable style={styles.postButton} onPress={() => router.push("/capture")}>
+          <Ionicons name="add" size={34} color="#0d0d12" />
+        </Pressable>
 
-        <Text style={styles.logHeader}>Log</Text>
-        {log.map((line, i) => (
-          <Text key={i} style={styles.logLine}>
-            {line}
-          </Text>
-        ))}
-      </ScrollView>
-    </SafeAreaView>
+        <Pressable style={styles.tabButton} onPress={() => router.push("/settings")}>
+          <Ionicons name="settings-outline" size={26} color="#fff" />
+        </Pressable>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#0d0d12" },
-  container: { padding: 20, paddingBottom: 60 },
-  subtitle: { fontSize: 13, color: "#9a9aa8", marginBottom: 20 },
-  card: {
-    backgroundColor: "#17171f",
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 12,
+  centered: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32 },
+  emptyText: { color: "#7a7a88", textAlign: "center", fontSize: 14 },
+
+  topBar: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    backgroundColor: "rgba(13,13,18,0.35)",
   },
-  label: { color: "#7a7a88", fontSize: 12, marginBottom: 4 },
-  value: { color: "#fff", fontSize: 14, fontFamily: "monospace" },
-  warning: { color: "#f5a623", fontSize: 12, marginTop: 8 },
-  balanceRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+  wordmark: { color: "#fff", fontSize: 18, fontWeight: "700" },
+
+  bottomLeft: {
+    position: "absolute",
+    left: 16,
+    right: 90,
+    gap: 4,
   },
-  refreshLink: { color: "#7ab8ff", fontSize: 12 },
-  spinner: { marginVertical: 12 },
-  buttonRow: { marginTop: 10 },
-  logHeader: {
-    color: "#7a7a88",
+  authorRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  author: {
+    color: "#fff",
+    fontSize: 15,
+    fontFamily: "monospace",
+    fontWeight: "700",
+    textShadowColor: "rgba(0,0,0,0.6)",
+    textShadowRadius: 4,
+  },
+  badge: {
+    backgroundColor: "rgba(42,33,64,0.85)",
+    borderColor: "#8a6fe8",
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  badgeText: { color: "#c9bbfb", fontSize: 11, fontWeight: "600" },
+  timestamp: {
+    color: "#e5e5ea",
     fontSize: 12,
-    marginTop: 24,
-    marginBottom: 8,
+    textShadowColor: "rgba(0,0,0,0.6)",
+    textShadowRadius: 4,
   },
-  logLine: { color: "#5f5f6e", fontSize: 11, fontFamily: "monospace", marginBottom: 4 },
+  link: {
+    color: "#cfe4ff",
+    fontSize: 13,
+    marginTop: 2,
+    textShadowColor: "rgba(0,0,0,0.6)",
+    textShadowRadius: 4,
+  },
+
+  rightStack: {
+    position: "absolute",
+    right: 14,
+    alignItems: "center",
+    gap: 4,
+  },
+  actionButton: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  actionLabel: {
+    color: "#fff",
+    fontSize: 11,
+    textShadowColor: "rgba(0,0,0,0.6)",
+    textShadowRadius: 4,
+  },
+  actionSubLink: { color: "#cfe4ff", fontSize: 11 },
+
+  bottomBar: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-evenly",
+    backgroundColor: "rgba(13,13,18,0.55)",
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "rgba(255,255,255,0.1)",
+  },
+  tabButton: { padding: 10 },
+  postButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: -18,
+    shadowColor: "#000",
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
 });

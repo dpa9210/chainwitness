@@ -1,3 +1,4 @@
+import { StatusBar } from "expo-status-bar";
 import { Stack } from "expo-router";
 
 import { WalletProvider } from "../src/walletContext";
@@ -5,6 +6,7 @@ import { WalletProvider } from "../src/walletContext";
 export default function RootLayout() {
   return (
     <WalletProvider>
+      <StatusBar style="light" />
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: "#0d0d12" },
@@ -12,9 +14,9 @@ export default function RootLayout() {
           contentStyle: { backgroundColor: "#0d0d12" },
         }}
       >
-        <Stack.Screen name="index" options={{ title: "ChainWitness" }} />
+        <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="capture" options={{ title: "New Post" }} />
-        <Stack.Screen name="feed" options={{ title: "Feed" }} />
+        <Stack.Screen name="settings" options={{ title: "Settings" }} />
       </Stack>
     </WalletProvider>
   );
