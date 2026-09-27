@@ -68,10 +68,9 @@ itself couldn't be shown a screen. Never claim "unfakeable."
 - [x] Simple feed screen: posts, image, timestamp, wallet badge, link to
       the devnet transaction. **Built 2026-09-27** (`app/feed.tsx`) —
       pull-to-refresh, refetches on focus, uses expo-image for the photo
-      grid. No wallet connection required just to browse. Not yet
-      confirmed on-device (built and type-checked, same as every other
-      screen before its first device test) — next real post or app open
-      should confirm it renders correctly.
+      grid. No wallet connection required just to browse. **Confirmed
+      rendering correctly on device 2026-09-27** (after the expo-image
+      native rebuild).
       *(No "friends" filtering yet — shows everyone's posts. Deferred:
       per-viewer curation wasn't in scope for this pass.)*
 - [ ] Tip button: send a small SOL transfer to a post's author via MWA.
