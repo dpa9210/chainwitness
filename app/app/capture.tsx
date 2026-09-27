@@ -12,7 +12,8 @@ import {
 } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 
-import { buildSignedMessage, hashPhoto } from "../src/contentHash";
+import { submitPostToFeed } from "../src/api";
+import { buildSignedMessage, hashAndEncodePhoto } from "../src/contentHash";
 import { toFriendlyMessage } from "../src/friendlyError";
 import { confirmTransaction, explorerUrl } from "../src/solanaClient";
 import { useWallet } from "../src/walletContext";
@@ -21,6 +22,7 @@ import { withTimeout } from "../src/withTimeout";
 const POST_TIMEOUT_MS = 90_000;
 
 type Stage = "camera" | "processing" | "confirming" | "done";
+type FeedStatus = "idle" | "uploading" | "uploaded" | "failed";
 
 /**
  * Capture a photo in-app (no gallery picker — the whole point is that the
@@ -29,8 +31,12 @@ type Stage = "camera" | "processing" | "confirming" | "done";
  * user's own wallet via Mobile Wallet Adapter. The transaction signature is
  * the public proof — no backend, no relay, no server-held key.
  *
- * Not yet wired to a backend/feed — that's next. This screen proves
- * capture → hash → on-chain memo tx works end to end on device.
+ * Once that succeeds, the photo + metadata are uploaded to the feed
+ * backend, which independently re-verifies the same proof against devnet
+ * before storing anything (see server/lib/solana.ts) — this app never
+ * asks the backend to just trust it. A feed upload failure doesn't
+ * invalidate the post: the on-chain transaction already succeeded and
+ * remains the real proof regardless of whether it shows up in any feed.
  */
 export default function CaptureScreen() {
   const { account, postProof } = useWallet();
@@ -44,6 +50,8 @@ export default function CaptureScreen() {
   const [signature, setSignature] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [feedStatus, setFeedStatus] = useState<FeedStatus>("idle");
+  const [feedError, setFeedError] = useState<string | null>(null);
 
   if (!account) {
     return (
@@ -85,7 +93,7 @@ export default function CaptureScreen() {
       if (!photo?.uri) throw new Error("Camera returned no photo URI");
 
       const now = Date.now();
-      const hashHex = await hashPhoto(photo.uri);
+      const { hashHex, base64 } = await hashAndEncodePhoto(photo.uri);
       const message = buildSignedMessage(hashHex, now);
 
       setPhotoUri(photo.uri);
@@ -112,6 +120,25 @@ export default function CaptureScreen() {
       } finally {
         setStage("done");
       }
+
+      // Upload to the feed. This is separate from — and doesn't gate — the
+      // proof above: the on-chain transaction is already final regardless
+      // of whether this succeeds.
+      setFeedStatus("uploading");
+      try {
+        await submitPostToFeed({
+          authorPubkey: account.publicKey.toBase58(),
+          imageBase64: base64,
+          imageHash: hashHex,
+          capturedAtMs: now,
+          txSignature: sig,
+        });
+        setFeedStatus("uploaded");
+      } catch (err) {
+        console.warn("[ChainWitness] feed upload failed:", err);
+        setFeedStatus("failed");
+        setFeedError(toFriendlyMessage(err));
+      }
     } catch (err) {
       const friendly = toFriendlyMessage(err);
       setError(friendly);
@@ -126,6 +153,8 @@ export default function CaptureScreen() {
     setCapturedAtMs(null);
     setSignature(null);
     setConfirmed(false);
+    setFeedStatus("idle");
+    setFeedError(null);
     setStage("camera");
   };
 
@@ -167,9 +196,23 @@ export default function CaptureScreen() {
             </Text>
           </View>
 
+          <View style={styles.card}>
+            <Text style={styles.label}>Feed</Text>
+            <Text style={styles.value}>
+              {feedStatus === "uploading" && "Uploading…"}
+              {feedStatus === "uploaded" && "Posted ✓"}
+              {feedStatus === "failed" && "Not posted to feed"}
+            </Text>
+            {feedStatus === "failed" && feedError && (
+              <Text style={styles.warning}>
+                {feedError} The on-chain proof above is still valid either way.
+              </Text>
+            )}
+          </View>
+
           <Text style={styles.note}>
             This is a real devnet transaction, signed and sent by your own
-            wallet. Not yet wired to a feed — that's next.
+            wallet.
           </Text>
 
           <View style={styles.buttonRow}>
@@ -228,6 +271,7 @@ const styles = StyleSheet.create({
   label: { color: "#7a7a88", fontSize: 12, marginBottom: 4 },
   value: { color: "#fff", fontSize: 13, fontFamily: "monospace" },
   link: { color: "#7ab8ff", fontSize: 13, marginTop: 8 },
+  warning: { color: "#f5a623", fontSize: 12, marginTop: 8 },
   note: { color: "#7a7a88", fontSize: 12, marginBottom: 16 },
   buttonRow: { marginTop: 12 },
   error: { color: "#ff6b6b", marginTop: 12, textAlign: "center" },

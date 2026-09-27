@@ -27,12 +27,18 @@ export function buildSignedMessage(
 }
 
 /**
- * Reads the captured photo off disk and returns its SHA-256 hash as a hex
- * string. This never leaves the device unless the caller sends it onward.
+ * Reads the captured photo off disk once and returns both its SHA-256 hash
+ * (hex) and its base64 encoding (for uploading to the feed backend) — one
+ * file read instead of two.
  */
-export async function hashPhoto(photoUri: string): Promise<string> {
+export async function hashAndEncodePhoto(
+  photoUri: string,
+): Promise<{ hashHex: string; base64: string }> {
   const file = new File(photoUri);
   const bytes = await file.bytes();
   const digest = await Crypto.digest(Crypto.CryptoDigestAlgorithm.SHA256, bytes);
-  return Buffer.from(digest).toString("hex");
+  return {
+    hashHex: Buffer.from(digest).toString("hex"),
+    base64: Buffer.from(bytes).toString("base64"),
+  };
 }
