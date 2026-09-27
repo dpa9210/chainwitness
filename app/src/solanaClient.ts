@@ -16,6 +16,7 @@
  */
 import {
   Connection,
+  LAMPORTS_PER_SOL,
   PublicKey,
   Transaction,
   TransactionInstruction,
@@ -52,6 +53,35 @@ function createMemoInstruction(memo: string): TransactionInstruction {
 
 export function explorerUrl(signature: string): string {
   return `https://explorer.solana.com/tx/${signature}?cluster=devnet`;
+}
+
+export function explorerAddressUrl(pubkey: PublicKey): string {
+  return `https://explorer.solana.com/address/${pubkey.toBase58()}?cluster=devnet`;
+}
+
+/**
+ * A wallet with 0 devnet SOL can't pay the transaction fee. Phantom's own
+ * "sign and send" screen may simulate the transaction and stall or show a
+ * quiet failure state on the wallet side rather than surfacing a clean
+ * error back to us — so we check and top the account up *before* ever
+ * asking the wallet to sign anything, rather than debugging a stuck wallet
+ * screen after the fact.
+ */
+export async function getBalanceSol(pubkey: PublicKey): Promise<number> {
+  const lamports = await connection.getBalance(pubkey, "confirmed");
+  return lamports / LAMPORTS_PER_SOL;
+}
+
+export async function requestDevnetAirdrop(pubkey: PublicKey): Promise<void> {
+  const signature = await connection.requestAirdrop(pubkey, LAMPORTS_PER_SOL);
+  const latest = await connection.getLatestBlockhash("confirmed");
+  const result = await connection.confirmTransaction(
+    { signature, ...latest },
+    "confirmed",
+  );
+  if (result.value.err) {
+    throw new Error(`Airdrop failed: ${JSON.stringify(result.value.err)}`);
+  }
 }
 
 /**

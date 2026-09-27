@@ -15,6 +15,9 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 import { buildSignedMessage, hashPhoto } from "../src/contentHash";
 import { confirmTransaction, explorerUrl } from "../src/solanaClient";
 import { useWallet } from "../src/walletContext";
+import { withTimeout } from "../src/withTimeout";
+
+const POST_TIMEOUT_MS = 90_000;
 
 type Stage = "camera" | "processing" | "confirming" | "done";
 
@@ -88,7 +91,12 @@ export default function CaptureScreen() {
       setImageHash(hashHex);
       setCapturedAtMs(now);
 
-      const sig = await postProof(message);
+      const sig = await withTimeout(
+        postProof(message),
+        POST_TIMEOUT_MS,
+        "Wallet didn't respond in time. Check Phantom for a pending approval " +
+          "screen, or confirm your wallet has devnet SOL (see the Home screen).",
+      );
       setSignature(sig);
       setStage("confirming");
 
