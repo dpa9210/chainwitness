@@ -4,6 +4,7 @@ import {
   Alert,
   Button,
   Image,
+  Linking,
   SafeAreaView,
   StyleSheet,
   Text,
@@ -12,20 +13,23 @@ import {
 import { CameraView, useCameraPermissions } from "expo-camera";
 
 import { buildSignedMessage, hashPhoto } from "../src/contentHash";
-import { bytesToHex } from "../src/mwaClient";
+import { confirmTransaction, explorerUrl } from "../src/solanaClient";
 import { useWallet } from "../src/walletContext";
 
-type Stage = "camera" | "processing" | "done";
+type Stage = "camera" | "processing" | "confirming" | "done";
 
 /**
- * Day 2 deliverable: capture a photo in-app (no gallery picker — the whole
- * point is that the timestamp is honest), hash it locally, and have the
- * connected wallet sign {hash, timestamp}. Nothing is uploaded anywhere yet
- * — that's Day 3 (backend + on-chain memo tx). This screen just has to
- * prove capture → hash → sign works end to end on device.
+ * Capture a photo in-app (no gallery picker — the whole point is that the
+ * timestamp is honest), hash it locally, and submit a devnet transaction
+ * carrying {hash, timestamp} as a Memo instruction, signed AND sent by the
+ * user's own wallet via Mobile Wallet Adapter. The transaction signature is
+ * the public proof — no backend, no relay, no server-held key.
+ *
+ * Not yet wired to a backend/feed — that's next. This screen proves
+ * capture → hash → on-chain memo tx works end to end on device.
  */
 export default function CaptureScreen() {
-  const { account, signMessage } = useWallet();
+  const { account, postProof } = useWallet();
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
 
@@ -33,7 +37,8 @@ export default function CaptureScreen() {
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [imageHash, setImageHash] = useState<string | null>(null);
   const [capturedAtMs, setCapturedAtMs] = useState<number | null>(null);
-  const [signatureHex, setSignatureHex] = useState<string | null>(null);
+  const [signature, setSignature] = useState<string | null>(null);
+  const [confirmed, setConfirmed] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (!account) {
@@ -78,13 +83,26 @@ export default function CaptureScreen() {
       const now = Date.now();
       const hashHex = await hashPhoto(photo.uri);
       const message = buildSignedMessage(hashHex, now);
-      const signature = await signMessage(message);
 
       setPhotoUri(photo.uri);
       setImageHash(hashHex);
       setCapturedAtMs(now);
-      setSignatureHex(bytesToHex(signature));
-      setStage("done");
+
+      const sig = await postProof(message);
+      setSignature(sig);
+      setStage("confirming");
+
+      // Best-effort UI polish only — the signature itself, once the wallet
+      // has accepted and broadcast it, is already the proof. A failed or
+      // slow confirmation check here doesn't invalidate that.
+      try {
+        const ok = await confirmTransaction(sig);
+        setConfirmed(ok);
+      } catch {
+        // Leave it at "confirming" — the signature/explorer link still work.
+      } finally {
+        setStage("done");
+      }
     } catch (err) {
       setError(String(err));
       setStage("camera");
@@ -96,11 +114,14 @@ export default function CaptureScreen() {
     setPhotoUri(null);
     setImageHash(null);
     setCapturedAtMs(null);
-    setSignatureHex(null);
+    setSignature(null);
+    setConfirmed(false);
     setStage("camera");
   };
 
-  if (stage === "done" && photoUri && imageHash && signatureHex && capturedAtMs) {
+  const isResultStage = stage === "confirming" || stage === "done";
+
+  if (isResultStage && photoUri && imageHash && signature && capturedAtMs) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.container}>
@@ -117,15 +138,28 @@ export default function CaptureScreen() {
             </Text>
           </View>
           <View style={styles.card}>
-            <Text style={styles.label}>Wallet signature</Text>
+            <Text style={styles.label}>
+              Devnet transaction{" "}
+              {stage === "confirming"
+                ? "(confirming…)"
+                : confirmed
+                  ? "(confirmed ✓)"
+                  : "(submitted)"}
+            </Text>
             <Text style={styles.value} numberOfLines={2}>
-              {signatureHex}
+              {signature}
+            </Text>
+            <Text
+              style={styles.link}
+              onPress={() => Linking.openURL(explorerUrl(signature))}
+            >
+              View on Solana Explorer →
             </Text>
           </View>
 
           <Text style={styles.note}>
-            Not yet published — Day 3 wires this into the backend and the
-            on-chain record.
+            This is a real devnet transaction, signed and sent by your own
+            wallet. Not yet wired to a feed — that's next.
           </Text>
 
           <View style={styles.buttonRow}>
@@ -143,11 +177,11 @@ export default function CaptureScreen() {
         {stage === "processing" ? (
           <View style={styles.overlay}>
             <ActivityIndicator size="large" color="#fff" />
-            <Text style={styles.overlayText}>Hashing + signing…</Text>
+            <Text style={styles.overlayText}>Hashing + signing + sending…</Text>
           </View>
         ) : (
           <View style={styles.buttonRow}>
-            <Button title="Capture & Sign" onPress={handleCapture} />
+            <Button title="Capture & Post" onPress={handleCapture} />
           </View>
         )}
         {error && <Text style={styles.error}>{error}</Text>}
@@ -183,6 +217,7 @@ const styles = StyleSheet.create({
   },
   label: { color: "#7a7a88", fontSize: 12, marginBottom: 4 },
   value: { color: "#fff", fontSize: 13, fontFamily: "monospace" },
+  link: { color: "#7ab8ff", fontSize: 13, marginTop: 8 },
   note: { color: "#7a7a88", fontSize: 12, marginBottom: 16 },
   buttonRow: { marginTop: 12 },
   error: { color: "#ff6b6b", marginTop: 12, textAlign: "center" },
