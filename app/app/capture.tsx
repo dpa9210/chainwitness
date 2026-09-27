@@ -11,6 +11,7 @@ import {
   View,
 } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
+import { router } from "expo-router";
 
 import { submitPostToFeed } from "../src/api";
 import { buildSignedMessage, hashAndEncodePhoto } from "../src/contentHash";
@@ -57,7 +58,8 @@ export default function CaptureScreen() {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.centered}>
-          <Text style={styles.info}>Connect a wallet on the Home screen first.</Text>
+          <Text style={styles.info}>Connect a wallet in Settings first.</Text>
+          <Button title="Go to Settings" onPress={() => router.push("/settings")} />
         </View>
       </SafeAreaView>
     );
@@ -104,7 +106,7 @@ export default function CaptureScreen() {
         postProof(message),
         POST_TIMEOUT_MS,
         "Wallet didn't respond in time. Check Phantom for a pending approval " +
-          "screen, or confirm your wallet has devnet SOL (see the Home screen).",
+          "screen, or confirm your wallet has devnet SOL (see Settings).",
       );
       setSignature(sig);
       setStage("confirming");

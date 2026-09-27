@@ -120,9 +120,32 @@ itself couldn't be shown a screen. Never claim "unfakeable."
 ### Should have (only after Tier A is fully working end-to-end)
 - [ ] Streak counter for consecutive daily posts.
 - [ ] Nicer feed/animation polish, haptics on capture + sign success.
-- [ ] Visual polish pass: proper icons, styled buttons (currently RN's plain
-      `<Button>`), consistent spacing/typography. **Deliberately deferred**
-      by user request until the backend + feed are working — see 2026-09-27.
+- [x] Visual polish pass. **Built 2026-09-27**: TikTok-style redesign, by
+      user request, once the backend + feed were confirmed working —
+      - **Feed is now the app's front door** (`app/index.tsx`): a
+        full-screen vertical pager (one post per screen, snap-to-page),
+        photo filling the whole screen, no native header. Author, badge,
+        timestamp, and the tip action float as overlays on top of the
+        photo instead of sitting in a scrolling card.
+      - **Persistent bottom tab bar**: home/refresh icon, a large elevated
+        circular **+** button dead-center for New Post (the "TikTok
+        create button"), settings gear on the right. Icons via
+        `@expo/vector-icons` (Ionicons) — no new native module, since it
+        only needs `expo-font`, already linked since Day 1.
+      - **Settings screen** (`app/settings.tsx`, new): wallet
+        connect/reconnect, balance + airdrop, and the debug log/sign-test
+        tools all moved here, out of the feed entirely, per user request.
+      - `app/feed.tsx` retired — its content became the new `index.tsx`.
+      - Status bar set to light content + `userInterfaceStyle: "dark"`
+        app-wide, so system UI doesn't disappear against the dark,
+        photo-filled screens.
+      - **Needs a native rebuild** (`npm run android`) before testing —
+        not because of a new native module this time, but because
+        `userInterfaceStyle` is a native-config change (Android theme),
+        which only takes effect through Continuous Native Generation on a
+        full rebuild, same requirement as a new native module for a
+        different reason.
+      - Not yet confirmed on-device.
 
 ### Explicitly out of scope
 - No custom Anchor program — a memo transaction is sufficient proof of
