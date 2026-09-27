@@ -14,6 +14,7 @@ export default function RootLayout() {
       >
         <Stack.Screen name="index" options={{ title: "ChainWitness" }} />
         <Stack.Screen name="capture" options={{ title: "New Post" }} />
+        <Stack.Screen name="feed" options={{ title: "Feed" }} />
       </Stack>
     </WalletProvider>
   );
