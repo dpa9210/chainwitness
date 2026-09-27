@@ -176,6 +176,7 @@ support the feed (photo storage + listing), not to verify or relay proof.
 | Genesis Token check needs mainnet RPC while app is devnet | Verify early; fall back to "Genesis Token badge" being best-effort/non-blocking if it's flaky |
 | Deadline is tighter than expected | Tier A list above is the actual floor — "should have" items are cut first |
 | No devices attached currently | Connect Seeker via USB + enable USB debugging before Day 1 spike |
+| Any new native-module dependency (expo-image was the first case, 2026-09-27) breaks the app on-device with "Cannot find native module" until rebuilt | This isn't a code bug — the installed dev client APK predates the new native code. Run `npm run android` again after adding any package with native code (check `expo-module.config.json` in the package, or just try it) before assuming something's broken. |
 
 ---
 
