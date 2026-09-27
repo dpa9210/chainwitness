@@ -34,16 +34,26 @@ itself couldn't be shown a screen. Never claim "unfakeable."
 - [ ] Daily prompt notification (can be a fixed/randomized local notification
       for demo purposes — doesn't need a server-side scheduler for v1).
 - [x] In-app camera capture (no gallery picker).
-- [x] Local hash of image + timestamp, signed by wallet via MWA.
-      **Built 2026-09-27**: capture → SHA-256 hash → MWA signature works in
-      the app (`app/capture.tsx`); not yet verified on the Seeker device or
-      wired to a backend/on-chain record — that's next.
-- [ ] Backend endpoint (Vercel) that accepts the signed payload, verifies the
-      signature against the claimed pubkey, stores the post record.
-- [ ] On-chain record per post: a memo-program transaction (or minimal
-      SPL/Token-2022 note) carrying the hash + timestamp, signed by the
-      user's wallet, submitted on devnet.
-- [ ] Simple feed screen: friends' posts, image, timestamp, wallet badge.
+      **Verified on device 2026-09-27** — capture flow ran with no errors.
+- [x] On-chain record per post: a Memo-program transaction carrying
+      `hash + timestamp`, signed AND sent by the **user's own wallet** via
+      MWA — no backend key custody, no relay. Program ID
+      (`MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr`) verified independently
+      against official docs + a live devnet `getAccountInfo` call, since the
+      current `@solana/spl-memo` npm package ships a different address.
+      **Built 2026-09-27** (`src/solanaClient.ts`, `app/capture.tsx`); not
+      yet verified end-to-end on device — needs an on-chain tx confirmed
+      next.
+      *(Supersedes the earlier plain-`signMessage` step — the on-chain tx
+      itself is now the signed proof, so there's no separate off-chain
+      signature to also manage.)*
+- [ ] Backend endpoint (Vercel): now scoped to **feed/discovery only** —
+      store the photo + post metadata (hash, timestamp, tx signature,
+      author) so a feed can be rendered. It no longer needs to verify
+      signatures itself; anyone (including the backend) can independently
+      confirm a post's proof by checking the devnet transaction directly.
+- [ ] Simple feed screen: friends' posts, image, timestamp, wallet badge,
+      link to the devnet transaction.
 - [ ] Tip button: send a small SOL transfer to a post's author via MWA.
 - [ ] Seeker Genesis Token check → badge on posts from Genesis Token holders.
       (Verify early whether this check should run against mainnet — Genesis
@@ -82,31 +92,32 @@ itself couldn't be shown a screen. Never claim "unfakeable."
 
 ```
 [ Android App — React Native / Expo dev build ]
-   ├── In-app camera → local image hash
-   ├── Mobile Wallet Adapter → connect + sign (Seed Vault on Seeker)
-   ├── Local notification scheduler (daily prompt)
-   └── Feed UI + tip button
+   ├── In-app camera → local image hash (expo-crypto SHA-256)
+   ├── Mobile Wallet Adapter → connect, build memo tx, wallet signs AND
+   │   sends it directly to Solana Devnet (Seed Vault on Seeker) —
+   │   src/solanaClient.ts. No backend key custody, no relay.
+   ├── Local notification scheduler (daily prompt) — not yet built
+   └── Feed UI + tip button — not yet built
         │
+        │  (upload photo + metadata, for feed only — not for proof)
         ▼  HTTPS
-[ Vercel backend ]
-   ├── POST /api/posts        → verify signature, store post + image
-   ├── GET  /api/feed          → return friends' posts
-   ├── (Genesis Token check — likely mainnet RPC call)
-   └── Submits memo transaction to Solana Devnet (signed by user's wallet,
-       relayed/broadcast by backend or built client-side and sent by the
-       user's own wallet — TBD in Day 1 spike, prefer user-signs-and-sends
-       to avoid backend holding any signing key)
+[ Vercel backend — not yet built ]
+   ├── POST /api/posts  → store { photoUrl, hash, timestamp, txSignature,
+   │                       author } for the feed
+   ├── GET  /api/feed   → return friends' posts
+   └── (Genesis Token check — likely a mainnet RPC call, separate from the
+       devnet app logic)
         │
         ▼
-[ Solana Devnet ]
-   └── Memo transaction per post: { hash, timestamp, pubkey }
+[ Solana Devnet ] ← already reachable directly from the app, verified working
+   └── Memo transaction per post: { hash, timestamp } — publicly checkable
+       by anyone via getTransaction, independent of our backend
 ```
 
-**Key architectural decision to nail down on Day 1:** does the *user's wallet*
-sign and submit the on-chain memo transaction directly (no backend key
-custody at all), or does the backend co-sign/relay? Prefer the former — it's
-simpler, needs no server-held key, and is a stronger "meaningful Solana
-interaction" story since the user's own wallet is the one touching the chain.
+**Resolved (was the Day 1 open decision):** the user's own wallet signs and
+sends the memo transaction directly — confirmed working end-to-end from the
+app. The backend never sees or needs a signing key; it exists purely to
+support the feed (photo storage + listing), not to verify or relay proof.
 
 ---
 

@@ -13,12 +13,14 @@ import {
   signMessage as mwaSignMessage,
   type ConnectedAccount,
 } from "./mwaClient";
+import { submitProofToChain } from "./solanaClient";
 
 type WalletContextValue = {
   account: ConnectedAccount | null;
   connecting: boolean;
   connect: () => Promise<ConnectedAccount>;
   signMessage: (message: string) => Promise<Uint8Array>;
+  postProof: (memo: string) => Promise<string>;
 };
 
 const WalletContext = createContext<WalletContextValue | null>(null);
@@ -48,9 +50,19 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     [account],
   );
 
+  const postProof = useCallback(
+    async (memo: string) => {
+      if (!account) {
+        throw new Error("Connect a wallet before posting.");
+      }
+      return submitProofToChain(account, memo);
+    },
+    [account],
+  );
+
   const value = useMemo(
-    () => ({ account, connecting, connect, signMessage }),
-    [account, connecting, connect, signMessage],
+    () => ({ account, connecting, connect, signMessage, postProof }),
+    [account, connecting, connect, signMessage, postProof],
   );
 
   return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;

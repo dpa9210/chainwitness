@@ -17,6 +17,8 @@ import {
   Web3MobileWallet,
 } from "@solana-mobile/mobile-wallet-adapter-protocol-web3js";
 
+import { getAuthToken, setAuthToken } from "./mwaSession";
+
 const APP_IDENTITY = {
   name: "ChainWitness",
   uri: "https://chainwitness.app",
@@ -25,8 +27,6 @@ const APP_IDENTITY = {
 
 // Devnet for the entire build — see PLAN.md.
 const CHAIN = "solana:devnet";
-
-let authToken: string | undefined;
 
 export type ConnectedAccount = {
   address: string; // base64-encoded, as returned by the wallet
@@ -47,10 +47,10 @@ export async function connectWallet(): Promise<ConnectedAccount> {
     const authResult = await wallet.authorize({
       chain: CHAIN,
       identity: APP_IDENTITY,
-      auth_token: authToken,
+      auth_token: getAuthToken(),
     });
 
-    authToken = authResult.auth_token;
+    setAuthToken(authResult.auth_token);
 
     const account = authResult.accounts[0];
     return {
@@ -73,11 +73,12 @@ export async function signMessage(
   const payload = new TextEncoder().encode(message);
 
   return transact(async (wallet: Web3MobileWallet) => {
-    await wallet.authorize({
+    const authResult = await wallet.authorize({
       chain: CHAIN,
       identity: APP_IDENTITY,
-      auth_token: authToken,
+      auth_token: getAuthToken(),
     });
+    setAuthToken(authResult.auth_token);
 
     const signedMessages = await wallet.signMessages({
       addresses: [account.address],
