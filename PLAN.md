@@ -143,8 +143,21 @@ interaction" story since the user's own wallet is the one touching the chain.
 
 ---
 
+## 8. Judging criteria → what this changes in the plan
+
+Repo: https://github.com/dpa9210/chainwitness
+
+| Criterion | Implication for how we build |
+|---|---|
+| Completion, judged from the demo video | The video is a deliverable in its own right — script it early (Day 5–6), not improvised at the end. Every Tier A checklist item needs a clean beat in the video. |
+| Technical depth, judged from GitHub commits | Commit in small, meaningful, honestly-described increments as each piece lands (not one end-of-project dump). No squashing/force-push once pushed — a real, readable history is the point. |
+| Mobile-optimized UX & use of mobile features | Raises "should have" items (haptics, in-app camera-first flow, local notifications, share sheet) to load-bearing, not optional polish. Lean on what only a phone can do: camera, push, biometric-gated Seed Vault signing. |
+| Usage & interaction with Solana network | Confirms the Day 1 architectural call: the **user's own wallet** signs and sends the on-chain memo transaction directly — no backend relay/custody. That's the clearest "real network interaction" story, and it's simpler to build too. |
+| Clarity & vision in presentation | The pitch deck must state the *problem* (AI-generated/manipulated content eroding trust) before the *mechanism*. Demo narration should say why hardware-signing matters, not just click through screens. |
+
+---
+
 ## Open items to confirm with user
 - Exact deadline date + time (timezone).
-- Confirm: user-signs-and-broadcasts vs backend-relay for the memo tx.
 - Invite-list mechanism for "friends" — hardcoded devnet pubkey list for the
   demo is fine; no need for a real friend-request system in this timeframe.
