@@ -25,6 +25,8 @@ export type FeedPost = {
   capturedAtMs: number;
   txSignature: string;
   createdAt: number;
+  /** Seeker Genesis Token badge, checked server-side at post time. */
+  hasSgt?: boolean;
 };
 
 async function parseJsonSafely(res: Response): Promise<unknown> {

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import { checkWalletForSGT } from "@/lib/sgt";
 import { verifyProof } from "@/lib/solana";
 import { savePost, uploadPhoto, type Post } from "@/lib/store";
 
@@ -71,6 +72,17 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: "Photo upload failed." }, { status: 502 });
   }
 
+  // Best-effort and non-fatal, unlike the proof check above: this is a
+  // cosmetic badge, not something being gated. A mainnet RPC hiccup here
+  // should never cost the user their (already-verified) post — it should
+  // just mean the badge doesn't show this time.
+  let hasSgt = false;
+  try {
+    hasSgt = (await checkWalletForSGT(body.authorPubkey)).hasSgt;
+  } catch (err) {
+    console.warn("[ChainWitness] SGT check failed (non-fatal):", err);
+  }
+
   const post: Post = {
     id,
     authorPubkey: body.authorPubkey,
@@ -79,6 +91,7 @@ export async function POST(request: Request): Promise<Response> {
     capturedAtMs: body.capturedAtMs,
     txSignature: body.txSignature,
     createdAt: Date.now(),
+    hasSgt,
   };
 
   try {

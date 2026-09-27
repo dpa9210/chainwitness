@@ -80,9 +80,35 @@ itself couldn't be shown a screen. Never claim "unfakeable."
       refactored out so both share the fee-payer self-healing logic
       instead of duplicating it). Hidden on your own posts; prompts to
       connect first if no wallet is active. Not yet confirmed on-device.
-- [ ] Seeker Genesis Token check → badge on posts from Genesis Token holders.
-      (Verify early whether this check should run against mainnet — Genesis
-      Token lives there — while the rest of the app runs on devnet.)
+- [x] Seeker Genesis Token check → badge on posts from Genesis Token
+      holders. **Built 2026-09-27** (`server/lib/sgt.ts`, checked once at
+      post-creation time, stored on the post record as `hasSgt`, rendered
+      as a small badge in `app/feed.tsx`).
+      - Confirmed against mainnet against Solana Mobile's real Token-2022
+        constants (metadata pointer + token group member, both must
+        match), fetched directly from their own reference implementation
+        rather than assumed — the Genesis Token indeed only exists on
+        mainnet, confirming the Day 1 risk note above.
+      - **Deliberately lighter than Solana Mobile's full SGT verification
+        pattern**: their reference design adds a Sign-in-with-Solana step
+        (server-issued nonce + signature check) on top of the mint check,
+        because it's built for *gating rewards* — there, a bare "this
+        address holds an SGT" claim could be submitted by anyone about
+        anyone else's address. That doesn't apply here: `authorPubkey` is
+        already proven to control the signing key by the on-chain proof
+        transaction itself (see lib/solana.ts) before the SGT check ever
+        runs, and the badge grants nothing — it's decoration on an
+        already-authenticated post. So: no SIWS ceremony, just the
+        mainnet mint check, run server-side only (never trust a
+        client-reported badge).
+      - Tested against real mainnet data, not synthetic: the wallet that
+        posted ChainWitness's first real post genuinely holds a Seeker
+        Genesis Token (confirmed `hasSgt: true` with a real mint address),
+        and a negative-control address correctly returned `false`. The
+        existing post was backfilled with the correct value.
+      - Check is non-fatal — a mainnet RPC failure during posting logs a
+        warning and defaults the badge to false rather than rejecting an
+        otherwise-valid, already-verified post.
 - [x] User-facing errors are plain English, not raw error codes/objects.
       **Built 2026-09-27** (`src/friendlyError.ts`) — maps MWA's typed error
       codes, common web3.js errors (expired blockhash, send/simulate

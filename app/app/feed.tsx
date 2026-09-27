@@ -70,7 +70,14 @@ function PostCard({ post }: { post: FeedPost }) {
       />
       <View style={styles.cardBody}>
         <View style={styles.cardRow}>
-          <Text style={styles.author}>{shortAddress(post.authorPubkey)}</Text>
+          <View style={styles.authorRow}>
+            <Text style={styles.author}>{shortAddress(post.authorPubkey)}</Text>
+            {post.hasSgt && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>Seeker ✓</Text>
+              </View>
+            )}
+          </View>
           <Text style={styles.timestamp}>
             {new Date(post.capturedAtMs).toLocaleString()}
           </Text>
@@ -201,7 +208,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 8,
   },
+  authorRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   author: { color: "#fff", fontSize: 14, fontFamily: "monospace" },
+  badge: {
+    backgroundColor: "#2a2140",
+    borderColor: "#8a6fe8",
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  badgeText: { color: "#b9a6f7", fontSize: 11, fontWeight: "600" },
   timestamp: { color: "#7a7a88", fontSize: 12 },
   link: { color: "#7ab8ff", fontSize: 13 },
   tipRow: {
