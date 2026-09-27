@@ -179,6 +179,9 @@ export default function HomeScreen() {
             disabled={!account}
           />
         </View>
+        <View style={styles.buttonRow}>
+          <Button title="View Feed →" onPress={() => router.push("/feed")} />
+        </View>
 
         <Text style={styles.logHeader}>Log</Text>
         {log.map((line, i) => (
