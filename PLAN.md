@@ -1,4 +1,4 @@
-# Proof of Real — Build Plan
+# ChainWitness — Build Plan
 
 **Target:** Solana Mobile hackathon submission
 **Deadline:** ~Oct 3–4, 2026 (confirm exact date/time and lock it in below)
