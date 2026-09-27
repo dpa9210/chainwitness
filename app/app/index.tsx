@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -12,16 +12,41 @@ import {
 import { router } from "expo-router";
 
 import { bytesToHex } from "../src/mwaClient";
+import { getBalanceSol, requestDevnetAirdrop } from "../src/solanaClient";
 import { useWallet } from "../src/walletContext";
 
 export default function HomeScreen() {
   const { account, connecting, connect, signMessage } = useWallet();
   const [signatureHex, setSignatureHex] = useState<string | null>(null);
   const [signing, setSigning] = useState(false);
+  const [balance, setBalance] = useState<number | null>(null);
+  const [checkingBalance, setCheckingBalance] = useState(false);
+  const [airdropping, setAirdropping] = useState(false);
   const [log, setLog] = useState<string[]>([]);
 
   const appendLog = (line: string) =>
     setLog((prev) => [`${new Date().toLocaleTimeString()}  ${line}`, ...prev]);
+
+  const refreshBalance = async () => {
+    if (!account) return;
+    setCheckingBalance(true);
+    try {
+      const sol = await getBalanceSol(account.publicKey);
+      setBalance(sol);
+    } catch (err) {
+      appendLog(`Balance check failed: ${String(err)}`);
+    } finally {
+      setCheckingBalance(false);
+    }
+  };
+
+  // Check balance as soon as a wallet connects — a 0-SOL wallet can't pay
+  // transaction fees, which is the most common reason "Capture & Post"
+  // appears to hang on the wallet's own approval screen.
+  useEffect(() => {
+    if (account) refreshBalance();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [account?.publicKey.toBase58()]);
 
   const handleConnect = async () => {
     try {
@@ -31,6 +56,25 @@ export default function HomeScreen() {
     } catch (err) {
       appendLog(`Connect failed: ${String(err)}`);
       Alert.alert("Connect failed", String(err));
+    }
+  };
+
+  const handleAirdrop = async () => {
+    if (!account) return;
+    setAirdropping(true);
+    try {
+      appendLog("Requesting 1 devnet SOL airdrop...");
+      await requestDevnetAirdrop(account.publicKey);
+      appendLog("Airdrop confirmed.");
+      await refreshBalance();
+    } catch (err) {
+      appendLog(`Airdrop failed: ${String(err)}`);
+      Alert.alert(
+        "Airdrop failed",
+        `${String(err)}\n\nDevnet's public faucet is rate-limited. If this keeps failing, try https://faucet.solana.com with this wallet's address.`,
+      );
+    } finally {
+      setAirdropping(false);
     }
   };
 
@@ -52,6 +96,7 @@ export default function HomeScreen() {
   };
 
   const busy = connecting || signing;
+  const needsFunds = balance !== null && balance <= 0;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -67,6 +112,25 @@ export default function HomeScreen() {
           </Text>
         </View>
 
+        {account && (
+          <View style={styles.card}>
+            <Text style={styles.label}>Devnet balance</Text>
+            <Text style={styles.value}>
+              {checkingBalance
+                ? "Checking…"
+                : balance !== null
+                  ? `${balance} SOL`
+                  : "Unknown"}
+            </Text>
+            {needsFunds && (
+              <Text style={styles.warning}>
+                0 SOL — posting will fail (can't pay the transaction fee).
+                Tap below to airdrop devnet SOL first.
+              </Text>
+            )}
+          </View>
+        )}
+
         <View style={styles.card}>
           <Text style={styles.label}>Last test signature</Text>
           <Text style={styles.value} numberOfLines={2}>
@@ -74,7 +138,7 @@ export default function HomeScreen() {
           </Text>
         </View>
 
-        {busy && <ActivityIndicator style={styles.spinner} />}
+        {(busy || airdropping) && <ActivityIndicator style={styles.spinner} />}
 
         <View style={styles.buttonRow}>
           <Button
@@ -83,6 +147,15 @@ export default function HomeScreen() {
             disabled={busy}
           />
         </View>
+        {account && (
+          <View style={styles.buttonRow}>
+            <Button
+              title="Get Devnet SOL (airdrop)"
+              onPress={handleAirdrop}
+              disabled={airdropping}
+            />
+          </View>
+        )}
         <View style={styles.buttonRow}>
           <Button
             title="Sign Test Message"
@@ -121,6 +194,7 @@ const styles = StyleSheet.create({
   },
   label: { color: "#7a7a88", fontSize: 12, marginBottom: 4 },
   value: { color: "#fff", fontSize: 14, fontFamily: "monospace" },
+  warning: { color: "#f5a623", fontSize: 12, marginTop: 8 },
   spinner: { marginVertical: 12 },
   buttonRow: { marginTop: 10 },
   logHeader: {
