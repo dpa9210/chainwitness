@@ -19,6 +19,8 @@ export type Post = {
   capturedAtMs: number;
   txSignature: string;
   createdAt: number;
+  /** Seeker Genesis Token badge — see lib/sgt.ts. Checked once at post-creation time. */
+  hasSgt: boolean;
 };
 
 function redis(): Redis {
