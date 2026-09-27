@@ -8,12 +8,14 @@
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
+import { PublicKey } from "@solana/web3.js";
+
 import {
   connectWallet as mwaConnect,
   signMessage as mwaSignMessage,
   type ConnectedAccount,
 } from "./mwaClient";
-import { submitProofToChain } from "./solanaClient";
+import { sendTip, submitProofToChain } from "./solanaClient";
 
 type WalletContextValue = {
   account: ConnectedAccount | null;
@@ -21,6 +23,7 @@ type WalletContextValue = {
   connect: () => Promise<ConnectedAccount>;
   signMessage: (message: string) => Promise<Uint8Array>;
   postProof: (memo: string) => Promise<string>;
+  tip: (recipient: PublicKey, lamports?: number) => Promise<string>;
 };
 
 const WalletContext = createContext<WalletContextValue | null>(null);
@@ -67,9 +70,23 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     [account],
   );
 
+  const tip = useCallback(
+    async (recipient: PublicKey, lamports?: number) => {
+      if (!account) {
+        throw new Error("Connect a wallet before tipping.");
+      }
+      const result = await sendTip(account, recipient, lamports);
+      if (result.account.address !== account.address) {
+        setAccount(result.account);
+      }
+      return result.signature;
+    },
+    [account],
+  );
+
   const value = useMemo(
-    () => ({ account, connecting, connect, signMessage, postProof }),
-    [account, connecting, connect, signMessage, postProof],
+    () => ({ account, connecting, connect, signMessage, postProof, tip }),
+    [account, connecting, connect, signMessage, postProof, tip],
   );
 
   return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;

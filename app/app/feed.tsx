@@ -1,6 +1,8 @@
 import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
+  Button,
   FlatList,
   Linking,
   RefreshControl,
@@ -10,17 +12,54 @@ import {
   View,
 } from "react-native";
 import { Image } from "expo-image";
-import { useFocusEffect } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
+import { PublicKey } from "@solana/web3.js";
 
 import { fetchFeed, type FeedPost } from "../src/api";
 import { toFriendlyMessage } from "../src/friendlyError";
-import { explorerUrl } from "../src/solanaClient";
+import { DEFAULT_TIP_LAMPORTS, explorerUrl } from "../src/solanaClient";
+import { useWallet } from "../src/walletContext";
+
+const TIP_SOL_LABEL = (DEFAULT_TIP_LAMPORTS / 1_000_000_000).toString();
 
 function shortAddress(address: string): string {
   return `${address.slice(0, 4)}…${address.slice(-4)}`;
 }
 
+type TipStatus = "idle" | "sending" | "sent" | "failed";
+
 function PostCard({ post }: { post: FeedPost }) {
+  const { account, tip } = useWallet();
+  const [tipStatus, setTipStatus] = useState<TipStatus>("idle");
+  const [tipSignature, setTipSignature] = useState<string | null>(null);
+
+  const isOwnPost = account?.publicKey.toBase58() === post.authorPubkey;
+
+  const handleTip = async () => {
+    if (!account) {
+      Alert.alert(
+        "Connect a wallet",
+        "Connect a wallet on the Home screen before tipping.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Go to Home", onPress: () => router.push("/") },
+        ],
+      );
+      return;
+    }
+
+    setTipStatus("sending");
+    try {
+      const recipient = new PublicKey(post.authorPubkey);
+      const sig = await tip(recipient);
+      setTipSignature(sig);
+      setTipStatus("sent");
+    } catch (err) {
+      setTipStatus("failed");
+      Alert.alert("Tip failed", toFriendlyMessage(err));
+    }
+  };
+
   return (
     <View style={styles.card}>
       <Image
@@ -42,6 +81,30 @@ function PostCard({ post }: { post: FeedPost }) {
         >
           View proof on Solana Explorer →
         </Text>
+
+        {!isOwnPost && (
+          <View style={styles.tipRow}>
+            <Button
+              title={
+                tipStatus === "sending"
+                  ? "Sending…"
+                  : tipStatus === "sent"
+                    ? "Tipped ✓"
+                    : `Tip ${TIP_SOL_LABEL} SOL`
+              }
+              onPress={handleTip}
+              disabled={tipStatus === "sending" || tipStatus === "sent"}
+            />
+            {tipStatus === "sent" && tipSignature && (
+              <Text
+                style={styles.tipLink}
+                onPress={() => Linking.openURL(explorerUrl(tipSignature))}
+              >
+                View tip →
+              </Text>
+            )}
+          </View>
+        )}
       </View>
     </View>
   );
@@ -141,4 +204,11 @@ const styles = StyleSheet.create({
   author: { color: "#fff", fontSize: 14, fontFamily: "monospace" },
   timestamp: { color: "#7a7a88", fontSize: 12 },
   link: { color: "#7ab8ff", fontSize: 13 },
+  tipRow: {
+    marginTop: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  tipLink: { color: "#7ab8ff", fontSize: 13 },
 });
