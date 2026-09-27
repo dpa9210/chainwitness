@@ -81,7 +81,10 @@ export async function requestDevnetAirdrop(pubkey: PublicKey): Promise<void> {
     "confirmed",
   );
   if (result.value.err) {
-    throw new Error(`Airdrop failed: ${JSON.stringify(result.value.err)}`);
+    console.warn("[ChainWitness] devnet airdrop failed:", result.value.err);
+    throw new Error(
+      "Airdrop failed — devnet's public faucet is rate-limited. Wait a minute and try again, or use https://faucet.solana.com.",
+    );
   }
 }
 

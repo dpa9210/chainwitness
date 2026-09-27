@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 
+import { toFriendlyMessage } from "../src/friendlyError";
 import { bytesToHex } from "../src/mwaClient";
 import { getBalanceSol, requestDevnetAirdrop } from "../src/solanaClient";
 import { useWallet } from "../src/walletContext";
@@ -60,7 +61,7 @@ export default function HomeScreen() {
       appendLog(`Connected: ${acct.publicKey.toBase58()}`);
     } catch (err) {
       appendLog(`Connect failed: ${String(err)}`);
-      Alert.alert("Connect failed", String(err));
+      Alert.alert("Couldn't connect", toFriendlyMessage(err));
     }
   };
 
@@ -74,10 +75,7 @@ export default function HomeScreen() {
       await refreshBalance();
     } catch (err) {
       appendLog(`Airdrop failed: ${String(err)}`);
-      Alert.alert(
-        "Airdrop failed",
-        `${String(err)}\n\nDevnet's public faucet is rate-limited. If this keeps failing, try https://faucet.solana.com with this wallet's address.`,
-      );
+      Alert.alert("Airdrop didn't go through", toFriendlyMessage(err));
     } finally {
       setAirdropping(false);
     }
@@ -94,7 +92,7 @@ export default function HomeScreen() {
       appendLog(`Signed. Signature (hex): ${hex.slice(0, 24)}...`);
     } catch (err) {
       appendLog(`Sign failed: ${String(err)}`);
-      Alert.alert("Sign failed", String(err));
+      Alert.alert("Couldn't sign", toFriendlyMessage(err));
     } finally {
       setSigning(false);
     }

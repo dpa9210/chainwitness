@@ -64,10 +64,20 @@ itself couldn't be shown a screen. Never claim "unfakeable."
 - [ ] Seeker Genesis Token check → badge on posts from Genesis Token holders.
       (Verify early whether this check should run against mainnet — Genesis
       Token lives there — while the rest of the app runs on devnet.)
+- [x] User-facing errors are plain English, not raw error codes/objects.
+      **Built 2026-09-27** (`src/friendlyError.ts`) — maps MWA's typed error
+      codes, common web3.js errors (expired blockhash, send/simulate
+      failures), and network errors to short actionable sentences; anything
+      unrecognized falls back to a generic "Something went wrong" rather
+      than leaking a stack trace, while the raw error is still logged via
+      console.warn for our own debugging.
 
 ### Should have (only after Tier A is fully working end-to-end)
 - [ ] Streak counter for consecutive daily posts.
 - [ ] Nicer feed/animation polish, haptics on capture + sign success.
+- [ ] Visual polish pass: proper icons, styled buttons (currently RN's plain
+      `<Button>`), consistent spacing/typography. **Deliberately deferred**
+      by user request until the backend + feed are working — see 2026-09-27.
 
 ### Explicitly out of scope
 - No custom Anchor program — a memo transaction is sufficient proof of

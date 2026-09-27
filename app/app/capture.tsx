@@ -13,6 +13,7 @@ import {
 import { CameraView, useCameraPermissions } from "expo-camera";
 
 import { buildSignedMessage, hashPhoto } from "../src/contentHash";
+import { toFriendlyMessage } from "../src/friendlyError";
 import { confirmTransaction, explorerUrl } from "../src/solanaClient";
 import { useWallet } from "../src/walletContext";
 import { withTimeout } from "../src/withTimeout";
@@ -112,9 +113,10 @@ export default function CaptureScreen() {
         setStage("done");
       }
     } catch (err) {
-      setError(String(err));
+      const friendly = toFriendlyMessage(err);
+      setError(friendly);
       setStage("camera");
-      Alert.alert("Capture failed", String(err));
+      Alert.alert("Couldn't post", friendly);
     }
   };
 
