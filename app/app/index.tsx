@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -9,7 +9,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 
 import { bytesToHex } from "../src/mwaClient";
 import { getBalanceSol, requestDevnetAirdrop } from "../src/solanaClient";
@@ -27,7 +27,7 @@ export default function HomeScreen() {
   const appendLog = (line: string) =>
     setLog((prev) => [`${new Date().toLocaleTimeString()}  ${line}`, ...prev]);
 
-  const refreshBalance = async () => {
+  const refreshBalance = useCallback(async () => {
     if (!account) return;
     setCheckingBalance(true);
     try {
@@ -38,15 +38,20 @@ export default function HomeScreen() {
     } finally {
       setCheckingBalance(false);
     }
-  };
-
-  // Check balance as soon as a wallet connects — a 0-SOL wallet can't pay
-  // transaction fees, which is the most common reason "Capture & Post"
-  // appears to hang on the wallet's own approval screen.
-  useEffect(() => {
-    if (account) refreshBalance();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [account?.publicKey.toBase58()]);
+
+  // Refetch every time this screen comes into focus — covers returning
+  // here after a successful post (balance just dropped by the tx fee) and
+  // after topping up via an external faucet while this screen was already
+  // mounted underneath. A plain useEffect on mount alone would miss both:
+  // it only reacts to `account` changing, not to revisiting the screen.
+  useFocusEffect(
+    useCallback(() => {
+      refreshBalance();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [account?.publicKey.toBase58()]),
+  );
 
   const handleConnect = async () => {
     try {
@@ -114,7 +119,12 @@ export default function HomeScreen() {
 
         {account && (
           <View style={styles.card}>
-            <Text style={styles.label}>Devnet balance</Text>
+            <View style={styles.balanceRow}>
+              <Text style={styles.label}>Devnet balance</Text>
+              <Text style={styles.refreshLink} onPress={refreshBalance}>
+                ↻ Refresh
+              </Text>
+            </View>
             <Text style={styles.value}>
               {checkingBalance
                 ? "Checking…"
@@ -125,7 +135,8 @@ export default function HomeScreen() {
             {needsFunds && (
               <Text style={styles.warning}>
                 0 SOL — posting will fail (can't pay the transaction fee).
-                Tap below to airdrop devnet SOL first.
+                Tap below to airdrop devnet SOL, or tap Refresh if you just
+                topped up elsewhere.
               </Text>
             )}
           </View>
@@ -195,6 +206,12 @@ const styles = StyleSheet.create({
   label: { color: "#7a7a88", fontSize: 12, marginBottom: 4 },
   value: { color: "#fff", fontSize: 14, fontFamily: "monospace" },
   warning: { color: "#f5a623", fontSize: 12, marginTop: 8 },
+  balanceRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  refreshLink: { color: "#7ab8ff", fontSize: 12 },
   spinner: { marginVertical: 12 },
   buttonRow: { marginTop: 10 },
   logHeader: {

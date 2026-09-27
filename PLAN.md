@@ -41,9 +41,15 @@ itself couldn't be shown a screen. Never claim "unfakeable."
       (`MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr`) verified independently
       against official docs + a live devnet `getAccountInfo` call, since the
       current `@solana/spl-memo` npm package ships a different address.
-      **Built 2026-09-27** (`src/solanaClient.ts`, `app/capture.tsx`); not
-      yet verified end-to-end on device — needs an on-chain tx confirmed
-      next.
+      **Verified on device 2026-09-27** with Solflare (devnet, faucet-funded)
+      — post signed and sent successfully. First attempt (Phantom, 0 SOL
+      balance) stalled on Phantom's own approval screen; fixed with a
+      Home-screen balance check + one-tap devnet airdrop and a 90s timeout
+      so a genuine stall now fails loudly instead of hanging. Also fixed a
+      real bug this surfaced: the transaction's fee payer is now always
+      taken from whichever wallet *actually authorizes that session*, not a
+      possibly-stale cached account — matters if the user switches wallet
+      apps between sessions (as happened here, Phantom → Solflare).
       *(Supersedes the earlier plain-`signMessage` step — the on-chain tx
       itself is now the signed proof, so there's no separate off-chain
       signature to also manage.)*

@@ -55,7 +55,14 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       if (!account) {
         throw new Error("Connect a wallet before posting.");
       }
-      return submitProofToChain(account, memo);
+      const result = await submitProofToChain(account, memo);
+      // Self-heal: if a different wallet app answered this session (user
+      // switched wallets since connecting), adopt it as the current
+      // account so the Home screen's balance card etc. reflect reality.
+      if (result.account.address !== account.address) {
+        setAccount(result.account);
+      }
+      return result.signature;
     },
     [account],
   );
