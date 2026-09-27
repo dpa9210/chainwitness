@@ -18,6 +18,7 @@ import {
   Connection,
   LAMPORTS_PER_SOL,
   PublicKey,
+  SystemProgram,
   Transaction,
   TransactionInstruction,
   clusterApiUrl,
@@ -98,10 +99,11 @@ export type ProofResult = {
 };
 
 /**
- * Opens an MWA session, reauthorizes with the cached auth_token, builds a
- * single-instruction memo transaction, and asks the wallet to sign AND
- * broadcast it. Returns the transaction signature once the wallet accepts
- * it (not necessarily finalized on-chain yet — see confirmTransaction).
+ * Shared core for every "open a wallet session, sign, and send" action in
+ * this app (the on-chain proof, and tipping). Opens an MWA session,
+ * reauthorizes with the cached auth_token, builds a transaction from
+ * whichever instructions the caller needs (given the *actual* signer's
+ * pubkey, resolved below), and asks the wallet to sign AND broadcast it.
  *
  * The fee payer is always taken from *this session's own* authorize()
  * response, never from the `account` passed in. If the OS routes this
@@ -110,12 +112,12 @@ export type ProofResult = {
  * uninstalled the previous one), the stale `auth_token` won't apply and the
  * wallet returns a fresh account — using that instead of the stale one
  * means the transaction's fee payer always matches whichever wallet is
- * actually about to sign it. The caller should treat the returned
- * `account` as the new source of truth (see walletContext.tsx).
+ * actually about to sign it. Callers should treat the returned `account` as
+ * the new source of truth (see walletContext.tsx).
  */
-export async function submitProofToChain(
+async function authorizeAndSend(
   account: ConnectedAccount,
-  memo: string,
+  buildInstructions: (signerPubkey: PublicKey) => TransactionInstruction[],
 ): Promise<ProofResult> {
   const { blockhash, lastValidBlockHeight } =
     await connection.getLatestBlockhash("confirmed");
@@ -146,7 +148,10 @@ export async function submitProofToChain(
       feePayer: signerAccount.publicKey,
       blockhash,
       lastValidBlockHeight,
-    }).add(createMemoInstruction(memo));
+    });
+    for (const ix of buildInstructions(signerAccount.publicKey)) {
+      transaction.add(ix);
+    }
 
     const signatures = await wallet.signAndSendTransactions({
       transactions: [transaction],
@@ -154,6 +159,34 @@ export async function submitProofToChain(
 
     return { signature: signatures[0], account: signerAccount };
   });
+}
+
+/** Builds and submits the on-chain proof transaction — see file header. */
+export async function submitProofToChain(
+  account: ConnectedAccount,
+  memo: string,
+): Promise<ProofResult> {
+  return authorizeAndSend(account, () => [createMemoInstruction(memo)]);
+}
+
+export const DEFAULT_TIP_LAMPORTS = 0.01 * LAMPORTS_PER_SOL;
+
+/**
+ * Sends a small SOL tip to a post's author, signed and sent by the tipper's
+ * own wallet — same no-custody pattern as the proof transaction, just a
+ * SystemProgram transfer instead of a Memo.
+ */
+export async function sendTip(
+  account: ConnectedAccount,
+  recipient: PublicKey,
+  lamports: number = DEFAULT_TIP_LAMPORTS,
+): Promise<ProofResult> {
+  if (recipient.equals(account.publicKey)) {
+    throw new Error("You can't tip yourself.");
+  }
+  return authorizeAndSend(account, (signerPubkey) => [
+    SystemProgram.transfer({ fromPubkey: signerPubkey, toPubkey: recipient, lamports }),
+  ]);
 }
 
 export async function confirmTransaction(signature: string): Promise<boolean> {

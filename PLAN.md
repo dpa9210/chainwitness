@@ -73,7 +73,13 @@ itself couldn't be shown a screen. Never claim "unfakeable."
       native rebuild).
       *(No "friends" filtering yet — shows everyone's posts. Deferred:
       per-viewer curation wasn't in scope for this pass.)*
-- [ ] Tip button: send a small SOL transfer to a post's author via MWA.
+- [x] Tip button: send a small SOL transfer to a post's author via MWA.
+      **Built 2026-09-27** (`solanaClient.sendTip`, wired into
+      `app/feed.tsx`) — fixed 0.01 SOL, signed and sent by the tipper's own
+      wallet (same no-custody `authorizeAndSend` core the proof flow uses,
+      refactored out so both share the fee-payer self-healing logic
+      instead of duplicating it). Hidden on your own posts; prompts to
+      connect first if no wallet is active. Not yet confirmed on-device.
 - [ ] Seeker Genesis Token check → badge on posts from Genesis Token holders.
       (Verify early whether this check should run against mainnet — Genesis
       Token lives there — while the rest of the app runs on devnet.)
