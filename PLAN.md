@@ -53,17 +53,18 @@ itself couldn't be shown a screen. Never claim "unfakeable."
       *(Supersedes the earlier plain-`signMessage` step — the on-chain tx
       itself is now the signed proof, so there's no separate off-chain
       signature to also manage.)*
-- [~] Backend endpoint (Vercel, `server/`): scoped to **feed/discovery
-      only** — store the photo + post metadata so a feed can be rendered.
-      **Built 2026-09-27**: `POST /api/posts` (re-verifies the proof against
-      devnet independently before storing anything — never trusts the
-      client) and `GET /api/feed`. Vercel project `chainwitness-api` linked,
-      Blob store created. **Blocked on one step only you can do**: the
-      Upstash Redis integration needs its terms accepted in-browser by the
-      account owner — see `server/README.md`. Full end-to-end test (a real
-      stored post round-tripping through the live feed) still pending that,
-      plus the app isn't wired to call this backend yet (Day 3 shipped the
-      on-chain proof flow first).
+- [x] Backend endpoint (Vercel, `server/`): scoped to **feed/discovery
+      only** — stores the photo + post metadata so a feed can be rendered.
+      `POST /api/posts` (re-verifies the proof against devnet independently
+      before storing anything — never trusts the client) and `GET
+      /api/feed`. Deployed to `https://chainwitness-api.vercel.app` (Vercel
+      project `chainwitness-api`, Blob store + Upstash Redis both live).
+      **Verified end-to-end on device 2026-09-27**: a real capture went
+      on-chain, the backend independently re-verified it, the photo landed
+      in Blob storage (confirmed viewable), and the post appeared correctly
+      in the live feed. The full pipeline — camera → hash → wallet signs
+      and sends on devnet → backend re-verifies → stored → listed — is
+      confirmed working with real data, not just a synthetic test.
 - [ ] Simple feed screen: friends' posts, image, timestamp, wallet badge,
       link to the devnet transaction.
 - [ ] Tip button: send a small SOL transfer to a post's author via MWA.
