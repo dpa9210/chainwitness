@@ -18,6 +18,7 @@ import {
 } from "@solana-mobile/mobile-wallet-adapter-protocol-web3js";
 
 import { getAuthToken, setAuthToken } from "./mwaSession";
+import { toPublicKey } from "./solanaAddress";
 
 const APP_IDENTITY = {
   name: "ChainWitness",
@@ -33,10 +34,6 @@ export type ConnectedAccount = {
   publicKey: PublicKey;
   label?: string;
 };
-
-function toPublicKey(base64Address: string): PublicKey {
-  return new PublicKey(Buffer.from(base64Address, "base64"));
-}
 
 /**
  * Opens an MWA session and authorizes (or reauthorizes) the connected

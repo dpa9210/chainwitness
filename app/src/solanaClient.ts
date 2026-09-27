@@ -29,6 +29,7 @@ import {
 
 import type { ConnectedAccount } from "./mwaClient";
 import { getAuthToken, setAuthToken } from "./mwaSession";
+import { toPublicKey } from "./solanaAddress";
 
 export const MEMO_PROGRAM_ID = new PublicKey(
   "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
@@ -84,16 +85,35 @@ export async function requestDevnetAirdrop(pubkey: PublicKey): Promise<void> {
   }
 }
 
+export type ProofResult = {
+  signature: string;
+  /**
+   * Whichever account actually authorized and signed *this* session — see
+   * note below on why this can differ from the account passed in.
+   */
+  account: ConnectedAccount;
+};
+
 /**
  * Opens an MWA session, reauthorizes with the cached auth_token, builds a
  * single-instruction memo transaction, and asks the wallet to sign AND
  * broadcast it. Returns the transaction signature once the wallet accepts
  * it (not necessarily finalized on-chain yet — see confirmTransaction).
+ *
+ * The fee payer is always taken from *this session's own* authorize()
+ * response, never from the `account` passed in. If the OS routes this
+ * transact() call to a different wallet app than the one that produced the
+ * cached account (e.g. the user switched their default wallet, or
+ * uninstalled the previous one), the stale `auth_token` won't apply and the
+ * wallet returns a fresh account — using that instead of the stale one
+ * means the transaction's fee payer always matches whichever wallet is
+ * actually about to sign it. The caller should treat the returned
+ * `account` as the new source of truth (see walletContext.tsx).
  */
 export async function submitProofToChain(
   account: ConnectedAccount,
   memo: string,
-): Promise<string> {
+): Promise<ProofResult> {
   const { blockhash, lastValidBlockHeight } =
     await connection.getLatestBlockhash("confirmed");
 
@@ -105,8 +125,22 @@ export async function submitProofToChain(
     });
     setAuthToken(authResult.auth_token);
 
+    const signer = authResult.accounts[0];
+    const signerAccount: ConnectedAccount = {
+      address: signer.address,
+      publicKey: toPublicKey(signer.address),
+      label: signer.label,
+    };
+
+    if (signer.address !== account.address) {
+      console.warn(
+        "[ChainWitness] Signing wallet changed since last connect:",
+        `was ${account.publicKey.toBase58()}, now ${signerAccount.publicKey.toBase58()}`,
+      );
+    }
+
     const transaction = new Transaction({
-      feePayer: account.publicKey,
+      feePayer: signerAccount.publicKey,
       blockhash,
       lastValidBlockHeight,
     }).add(createMemoInstruction(memo));
@@ -115,7 +149,7 @@ export async function submitProofToChain(
       transactions: [transaction],
     });
 
-    return signatures[0];
+    return { signature: signatures[0], account: signerAccount };
   });
 }
 
