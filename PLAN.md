@@ -197,6 +197,22 @@ itself couldn't be shown a screen. Never claim "unfakeable."
         (amber alert-circle + existing message for the failed case),
         consistent with the checkmark-icon treatment used elsewhere.
 
+- [x] Cross-device layout fix: capture result screen. **Fixed 2026-09-28**,
+      found testing on a second physical device (Honor, via USB, after the
+      Seeker) for the first time — the capture screen's result stage
+      (photo preview + info cards + New Post / View Feed buttons) was a
+      fixed, non-scrolling `View`, which happened to fit the Seeker's
+      screen but pushed the two buttons below the visible area — with no
+      way to reach them — on the Honor's different aspect ratio. Wrapped
+      it in a `ScrollView` (`contentContainerStyle`, no `flex: 1` on the
+      content style — that's a ScrollView anti-pattern), matching the
+      pattern Settings already used. Audited the other three screens for
+      the same class of bug: `index.tsx` already scrolls via `FlatList`;
+      `post/[id].tsx`'s overlay panel is small and fixed (well under any
+      real screen's height) so it wasn't at risk. Pure JS change, no new
+      native module or config — no rebuild needed, Metro hot-reloads it on
+      both connected devices.
+
 ### Should have (only after Tier A is fully working end-to-end)
 - [ ] Streak counter for consecutive daily posts.
 - [ ] Nicer feed/animation polish, haptics on capture + sign success.
