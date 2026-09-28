@@ -185,9 +185,31 @@ itself couldn't be shown a screen. Never claim "unfakeable."
         post detail screen lost their native header in favor of an
         overlaid circular close (×) button, consistent with the
         edge-to-edge look everywhere else.
-      - Still not confirmed on-device as of this write-up — next build
-        needs to verify both the bug fix and the new feed/detail/capture
-        UI.
+      - **Confirmed on device 2026-09-28**: the focus-mounting bug fix
+        works — the exact repro scenario (fresh open → New Post →
+        connect from prompt → return) now shows a working camera.
+
+      **Same day, two more findings from that device test:**
+      - **Not a ChainWitness bug**: posting failed with a wallet-reported
+        network mismatch ("transaction is for mainnet" while the wallet
+        was believed to be on devnet). Re-audited every chain reference in
+        the client app — `grep -rn mainnet app/src app/app` returns
+        nothing; `CHAIN = "solana:devnet"` is the only value ever passed
+        to `authorize()`, in both `mwaClient.ts` and `solanaClient.ts`.
+        The MWA protocol gives no field in `AuthorizationResult` that
+        echoes back which network a wallet actually granted, so this
+        can't be verified or corrected from our side — it's the connected
+        wallet app's *own*, separate network setting (Phantom/Solflare
+        have one independent of anything a dApp requests). Added a
+        `friendlyError.ts` pattern for this so it reads as an actionable
+        message pointing at the wallet app's own settings instead of a
+        generic failure, plus a standing reminder on the Settings screen.
+      - **Feed readability**: with no card background, posts were hard to
+        tell apart on the dark screen. Each post is now a real card —
+        `#16161f` background against the `#0d0d12` screen, rounded
+        corners, a hairline border, and real margin between cards —
+        instead of content sitting directly on the same background as
+        everything else.
 
 ### Explicitly out of scope
 - No custom Anchor program — a memo transaction is sufficient proof of

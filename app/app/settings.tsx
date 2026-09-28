@@ -112,6 +112,13 @@ export default function SettingsScreen() {
           </Text>
         </View>
 
+        <Text style={styles.tip}>
+          ChainWitness runs entirely on Solana Devnet. Your wallet app
+          (Phantom, Solflare, etc.) has its own separate network setting —
+          make sure it's also set to Devnet, or posting and tipping will
+          fail with a network-mismatch error from the wallet itself.
+        </Text>
+
         {account && (
           <View style={styles.card}>
             <View style={styles.balanceRow}>
@@ -204,6 +211,7 @@ const styles = StyleSheet.create({
   label: { color: "#7a7a88", fontSize: 12, marginBottom: 4 },
   value: { color: "#fff", fontSize: 14, fontFamily: "monospace" },
   warning: { color: "#f5a623", fontSize: 12, marginTop: 8 },
+  tip: { color: "#7a7a88", fontSize: 12, lineHeight: 17, marginBottom: 16 },
   balanceRow: {
     flexDirection: "row",
     justifyContent: "space-between",
