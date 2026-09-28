@@ -289,6 +289,25 @@ itself couldn't be shown a screen. Never claim "unfakeable."
       *image* (a flat color was simpler and the design didn't need an
       image layer). Removed the now-unused default background asset.
 
+      **Same day — splash screen bug found on-device**: the wordmark image
+      chosen for the splash (a wide ~7:1 horizontal banner) rendered badly
+      cropped — confirmed with a real screenshot grabbed via
+      `adb shell screencap` during the splash window (asset inspection
+      alone had missed it — the flattened per-density bitmap looked fine
+      in isolation; the bug only showed up in how Android actually
+      positions/scales it as a window background). Root cause: Android's
+      splash tooling (both the legacy raster-windowBackground path this
+      project's `expo-splash-screen` config uses, and the OS's own
+      Android-12+ splash API) is built around roughly-square icon-shaped
+      images, not arbitrary wide banners — a 7:1 image doesn't get
+      reliably contained/centered regardless of `resizeMode`/`imageWidth`
+      config. **Fixed** by switching the splash image to the square "CW"
+      mark (`android-icon-foreground.png`, the same asset as the app
+      icon's foreground layer) instead of the wordmark — standard,
+      well-supported pattern. Removed the now-unused wide wordmark asset.
+      Re-verified with another real on-device screenshot before declaring
+      it fixed this time, not just by inspecting the generated asset file.
+
 ### Should have (only after Tier A is fully working end-to-end)
 - [ ] Streak counter for consecutive daily posts.
 - [ ] Nicer feed/animation polish, haptics on capture + sign success.
