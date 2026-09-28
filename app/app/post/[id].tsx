@@ -47,7 +47,7 @@ export default function PostDetailScreen() {
       <SafeAreaView style={styles.safe}>
         <View style={styles.centered}>
           <Text style={styles.info}>
-            Couldn't find this post — go back and open it from the feed.
+            Couldn&apos;t find this post — go back and open it from the feed.
           </Text>
         </View>
       </SafeAreaView>

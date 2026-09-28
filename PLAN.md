@@ -31,8 +31,10 @@ itself couldn't be shown a screen. Never claim "unfakeable."
       wallet app — e.g. Phantom/Solflare — on the secondary phone, devnet).
       **Verified 2026-09-27**: connect + message signing confirmed working
       end-to-end against Phantom on real hardware.
-- [ ] Daily prompt notification (can be a fixed/randomized local notification
+- [x] Daily prompt notification (can be a fixed/randomized local notification
       for demo purposes — doesn't need a server-side scheduler for v1).
+      See the detailed entry under "Should have" below (built 2026-09-28) —
+      left the original scope note here since this item started as Tier A.
 - [x] In-app camera capture (no gallery picker).
       **Verified on device 2026-09-27** — capture flow ran with no errors.
 - [x] On-chain record per post: a Memo-program transaction carrying
@@ -116,6 +118,48 @@ itself couldn't be shown a screen. Never claim "unfakeable."
       unrecognized falls back to a generic "Something went wrong" rather
       than leaking a stack trace, while the raw error is still logged via
       console.warn for our own debugging.
+
+- [x] Daily prompt notification. **Built 2026-09-28** (`app/src/dailyPrompt.ts`,
+      wired into `app/app/settings.tsx` and `app/app/_layout.tsx`) — a pure
+      on-device local schedule via `expo-notifications`, no server-side
+      scheduler (per the explicit Tier A note that this doesn't need one for
+      v1).
+      - Settings screen gained a "Daily reminder" toggle + a row of time
+        presets (9am/1pm/6pm/9pm); toggling on requests notification
+        permission (needed at runtime on Android 13+, handled automatically
+        via the module's own manifest permission once the config plugin is
+        registered) and arms a recurring `DAILY` trigger. No separate
+        persisted on/off setting — the scheduled trigger itself, read back
+        from the OS via `getAllScheduledNotificationsAsync()`, is the single
+        source of truth for what's actually armed, so the UI can't drift
+        out of sync with reality.
+      - "Send test notification now" button fires a one-off notification a
+        few seconds out, so a demo (or the user) can see exactly what it
+        looks like without waiting for the scheduled time to arrive.
+      - Tapping the notification (cold start or warm) routes straight to
+        the capture screen, handled in the root layout via
+        `getLastNotificationResponseAsync` (cold start) and
+        `addNotificationResponseReceivedListener` (warm), gated on a
+        `data: { kind: "daily-prompt" }` marker so this only fires for our
+        own notification, not any future notification type.
+      - `expo-notifications` was already an unused dependency in
+        `package.json` from Day 1 planning but had never been added to the
+        `app.json` plugins list or referenced in code — confirmed via the
+        generated `android/build/generated/autolinking/autolinking.json`
+        that it wasn't actually linked into the last native build. Added
+        the config plugin (notification icon: the existing monochrome
+        adaptive-icon asset, already alpha-masked correctly for a status-bar
+        icon; accent color `#8a6fe8` to match the app's existing purple
+        accent). **Needs a native rebuild** (`npm run android`) — this is a
+        genuinely new native module entering the build this time, not just
+        a config change.
+      - Lint was run for the first time on this project this round
+        (`expo lint` had never been invoked before — it bootstrapped its own
+        config on first run) and caught a handful of pre-existing
+        unescaped-apostrophe / non-"simple-expression" hook-dependency
+        issues unrelated to this feature; fixed all of them alongside the
+        new code so the project now lints clean rather than leaving mixed
+        signal for the next real lint run.
 
 ### Should have (only after Tier A is fully working end-to-end)
 - [ ] Streak counter for consecutive daily posts.
@@ -278,8 +322,8 @@ itself couldn't be shown a screen. Never claim "unfakeable."
    ├── Mobile Wallet Adapter → connect, build memo tx, wallet signs AND
    │   sends it directly to Solana Devnet (Seed Vault on Seeker) —
    │   src/solanaClient.ts. No backend key custody, no relay.
-   ├── Local notification scheduler (daily prompt) — not yet built
-   └── Feed UI + tip button — not yet built
+   ├── Local notification scheduler (daily prompt) — built 2026-09-28
+   └── Feed UI + tip button — built
         │
         │  (upload photo + metadata, for feed only — not for proof)
         ▼  HTTPS
