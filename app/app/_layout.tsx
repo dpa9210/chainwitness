@@ -9,11 +9,11 @@ import { isDailyPromptResponse } from "../src/dailyPrompt";
 import { ThemeProvider, useTheme } from "../src/themeContext";
 import { WalletProvider } from "../src/walletContext";
 
-// Keeps the native splash screen (app.json's expo-splash-screen config —
-// same wordmark, rendered as a static image since a native splash can't use
-// a JS-loaded font) up until the Chakra Petch font used for that same
-// wordmark in-app has actually loaded, so there's no hand-off flash from a
-// system font to the real one right after launch.
+// Keeps the native splash screen (app.json's expo-splash-screen config — the
+// square "CW" mark, not the wordmark; Android's splash tooling doesn't
+// scale/center a wide non-square image reliably) up until the in-app Chakra
+// Petch font has actually loaded, so there's no hand-off flash from a system
+// font to the real one on the home screen right after launch.
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function ThemedStack() {
