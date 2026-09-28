@@ -254,6 +254,41 @@ itself couldn't be shown a screen. Never claim "unfakeable."
         (the plugin) — needs a rebuild, unlike the font package itself
         (which only needed `expo-font`, already linked).
 
+- [x] **Process fix: `expo run:android` was silently skipping native config
+      sync.** Found 2026-09-28 while debugging "the splash screen didn't
+      show" on the Honor phone. Root cause: when Metro is already running
+      (port 8081 busy — true for every rebuild this session after the
+      first), `npx expo run:android` takes a build-only fast path and does
+      **not** re-run the `expo prebuild` step that applies `app.json`'s
+      config plugins to the native project. New *packages* still get
+      linked correctly (Gradle autolinking reads `node_modules` directly,
+      independent of this), which is why notifications/async-storage/etc.
+      all worked functionally in earlier rounds — but config-plugin-driven
+      *asset generation* (splash background/image, adaptive icon colors,
+      notification icon color) was silently still running off Day-1
+      defaults this entire session. Confirmed by checking file mtimes:
+      the splash bitmap on disk predated every config change made to it.
+      **Fix**: `npx expo prebuild --platform android --clean` forces the
+      real sync; this is now the correct step before any round that
+      touches `app.json`, not just `npm run android`. Also surfaced (and
+      fixed) that `userInterfaceStyle` needed `expo-system-ui` installed
+      to actually take effect, which it never was.
+- [x] App icon. **Built 2026-09-28** — same drafting-before-committing
+      process as the wordmark: generated 4 concepts (CW monogram on
+      purple / CW monogram on dark / camera-aperture mark / shield+check
+      seal) with Python/PIL, presented as an Artifact gallery including a
+      simulated-home-screen-row preview at actual icon size. User picked
+      **Option 1 (CW monogram, white on purple)**. Built out the full
+      Android adaptive-icon set: flat `icon.png` (purple bg + glyph, iOS/
+      fallback), a transparent-background foreground layer sized within
+      Android's mask-safe zone (glyph narrower than the flat icon, so a
+      circular launcher mask doesn't clip the "W"'s corners), and a
+      monochrome variant for Android 13+ themed icons (same transparent
+      glyph — the OS re-tints it). `adaptiveIcon.backgroundColor` set to
+      the accent purple directly, replacing the old separate background
+      *image* (a flat color was simpler and the design didn't need an
+      image layer). Removed the now-unused default background asset.
+
 ### Should have (only after Tier A is fully working end-to-end)
 - [ ] Streak counter for consecutive daily posts.
 - [ ] Nicer feed/animation polish, haptics on capture + sign success.
