@@ -12,14 +12,18 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { Image } from "expo-image";
 import { router, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 
 import { fetchFeed, type FeedPost } from "../src/api";
 import { setFeedCache } from "../src/feedCache";
 import { toFriendlyMessage } from "../src/friendlyError";
 import { hasCompletedOnboarding } from "../src/onboarding";
 import { SeekerBadge } from "../src/SeekerBadge";
+import { StreakBadge } from "../src/StreakBadge";
 import { type ThemeColors } from "../src/theme";
 import { useTheme } from "../src/themeContext";
+import { useStreak } from "../src/useStreak";
+import { useWallet } from "../src/walletContext";
 
 function shortAddress(address: string): string {
   return `${address.slice(0, 4)}…${address.slice(-4)}`;
@@ -59,6 +63,9 @@ export default function FeedScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const { account } = useWallet();
+  const accountPubkeyStr = account?.publicKey.toBase58();
+  const { streak, refreshStreak } = useStreak();
 
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -98,8 +105,9 @@ export default function FeedScreen() {
   useFocusEffect(
     useCallback(() => {
       load(false);
+      if (accountPubkeyStr) refreshStreak(accountPubkeyStr);
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []),
+    }, [accountPubkeyStr]),
   );
 
   if (!onboardingChecked) {
@@ -115,6 +123,7 @@ export default function FeedScreen() {
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <View style={styles.topBar}>
         <Text style={styles.wordmark}>ChainWitness</Text>
+        {streak !== null && <StreakBadge days={streak} />}
       </View>
 
       {loading ? (
@@ -149,7 +158,13 @@ export default function FeedScreen() {
           <Ionicons name="home" size={26} color={colors.text} />
         </Pressable>
 
-        <Pressable style={styles.postButton} onPress={() => router.push("/capture")}>
+        <Pressable
+          style={styles.postButton}
+          onPress={() => {
+            Haptics.selectionAsync().catch(() => {});
+            router.push("/capture");
+          }}
+        >
           <Ionicons name="add" size={34} color={colors.background} />
         </Pressable>
 
@@ -168,6 +183,9 @@ function createStyles(colors: ThemeColors) {
     emptyText: { color: colors.textMuted, textAlign: "center", fontSize: 14 },
 
     topBar: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
       paddingHorizontal: 16,
       paddingVertical: 12,
       borderBottomWidth: StyleSheet.hairlineWidth,

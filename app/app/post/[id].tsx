@@ -13,6 +13,7 @@ import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { PublicKey } from "@solana/web3.js";
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 
 import { toFriendlyMessage } from "../../src/friendlyError";
 import { getCachedPost } from "../../src/feedCache";
@@ -77,6 +78,7 @@ export default function PostDetailScreen() {
       const sig = await tip(new PublicKey(post.authorPubkey));
       setTipSignature(sig);
       setTipStatus("sent");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     } catch (err) {
       setTipStatus("failed");
       Alert.alert("Tip failed", toFriendlyMessage(err));
