@@ -3,18 +3,42 @@ import {
   ActivityIndicator,
   Alert,
   Button,
+  Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
+import * as Notifications from "expo-notifications";
 
+import {
+  cancelDailyPrompt,
+  ensurePermission,
+  scheduleDailyPrompt,
+  sendTestPrompt,
+} from "../src/dailyPrompt";
 import { toFriendlyMessage } from "../src/friendlyError";
 import { bytesToHex } from "../src/mwaClient";
 import { getBalanceSol, requestDevnetAirdrop } from "../src/solanaClient";
 import { useWallet } from "../src/walletContext";
+
+const DAILY_PROMPT_ID = "chainwitness-daily-prompt";
+
+const TIME_PRESETS: { label: string; hour: number; minute: number }[] = [
+  { label: "9:00 AM", hour: 9, minute: 0 },
+  { label: "1:00 PM", hour: 13, minute: 0 },
+  { label: "6:00 PM", hour: 18, minute: 0 },
+  { label: "9:00 PM", hour: 21, minute: 0 },
+];
+
+function formatHourMinute(hour: number, minute: number): string {
+  const period = hour >= 12 ? "PM" : "AM";
+  const h12 = hour % 12 === 0 ? 12 : hour % 12;
+  return `${h12}:${minute.toString().padStart(2, "0")} ${period}`;
+}
 
 /**
  * Wallet connection, balance/airdrop, and the debug log — everything that
@@ -31,8 +55,89 @@ export default function SettingsScreen() {
   const [airdropping, setAirdropping] = useState(false);
   const [log, setLog] = useState<string[]>([]);
 
+  // The scheduled trigger itself (read back from the OS) is the source of
+  // truth for whether the daily prompt is on and at what time — no separate
+  // persisted setting to fall out of sync with reality.
+  const [reminderTime, setReminderTime] = useState<{ hour: number; minute: number } | null>(null);
+  const [reminderBusy, setReminderBusy] = useState(false);
+  const [sendingTest, setSendingTest] = useState(false);
+
   const appendLog = (line: string) =>
     setLog((prev) => [`${new Date().toLocaleTimeString()}  ${line}`, ...prev]);
+
+  const refreshReminderState = useCallback(async () => {
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+    const existing = scheduled.find((n) => n.identifier === DAILY_PROMPT_ID);
+    const trigger = existing?.trigger;
+    if (trigger && "type" in trigger && trigger.type === "daily") {
+      setReminderTime({ hour: trigger.hour, minute: trigger.minute });
+    } else {
+      setReminderTime(null);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshReminderState();
+    }, [refreshReminderState]),
+  );
+
+  const handleSetReminder = async (hour: number, minute: number) => {
+    setReminderBusy(true);
+    try {
+      const outcome = await ensurePermission();
+      if (outcome !== "granted") {
+        appendLog("Notification permission denied.");
+        Alert.alert(
+          "Notifications disabled",
+          "ChainWitness can't remind you without notification permission — enable it for ChainWitness in your phone's system settings.",
+        );
+        return;
+      }
+      await scheduleDailyPrompt(hour, minute);
+      setReminderTime({ hour, minute });
+      appendLog(`Daily reminder set for ${formatHourMinute(hour, minute)}.`);
+    } catch (err) {
+      appendLog(`Couldn't set reminder: ${String(err)}`);
+      Alert.alert("Couldn't set reminder", toFriendlyMessage(err));
+    } finally {
+      setReminderBusy(false);
+    }
+  };
+
+  const handleDisableReminder = async () => {
+    setReminderBusy(true);
+    try {
+      await cancelDailyPrompt();
+      setReminderTime(null);
+      appendLog("Daily reminder turned off.");
+    } finally {
+      setReminderBusy(false);
+    }
+  };
+
+  const handleSendTest = async () => {
+    setSendingTest(true);
+    try {
+      const outcome = await ensurePermission();
+      if (outcome !== "granted") {
+        Alert.alert(
+          "Notifications disabled",
+          "Enable notification permission for ChainWitness first.",
+        );
+        return;
+      }
+      await sendTestPrompt();
+      appendLog("Test notification sent — arrives in a few seconds.");
+    } catch (err) {
+      appendLog(`Test notification failed: ${String(err)}`);
+      Alert.alert("Couldn't send test notification", toFriendlyMessage(err));
+    } finally {
+      setSendingTest(false);
+    }
+  };
+
+  const accountPubkeyStr = account?.publicKey.toBase58();
 
   const refreshBalance = useCallback(async () => {
     if (!account) return;
@@ -46,13 +151,13 @@ export default function SettingsScreen() {
       setCheckingBalance(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [account?.publicKey.toBase58()]);
+  }, [accountPubkeyStr]);
 
   useFocusEffect(
     useCallback(() => {
       refreshBalance();
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [account?.publicKey.toBase58()]),
+    }, [accountPubkeyStr]),
   );
 
   const handleConnect = async () => {
@@ -118,7 +223,7 @@ export default function SettingsScreen() {
         <Text style={styles.tip}>
           ChainWitness runs entirely on Solana Devnet. Your wallet app
           (Phantom, Solflare, etc.) has its own separate network setting —
-          make sure it's also set to Devnet, or posting and tipping will
+          make sure it&apos;s also set to Devnet, or posting and tipping will
           fail with a network-mismatch error from the wallet itself.
         </Text>
 
@@ -139,7 +244,7 @@ export default function SettingsScreen() {
             </Text>
             {needsFunds && (
               <Text style={styles.warning}>
-                0 SOL — posting will fail (can't pay the transaction fee).
+                0 SOL — posting will fail (can&apos;t pay the transaction fee).
                 Tap below to airdrop devnet SOL, or tap Refresh if you just
                 topped up elsewhere.
               </Text>
@@ -165,6 +270,64 @@ export default function SettingsScreen() {
             />
           </View>
         )}
+
+        <Text style={styles.sectionHeader}>Daily reminder</Text>
+
+        <View style={styles.card}>
+          <View style={styles.balanceRow}>
+            <Text style={styles.label}>
+              {reminderTime
+                ? `On — ${formatHourMinute(reminderTime.hour, reminderTime.minute)} daily`
+                : "Off"}
+            </Text>
+            <Switch
+              value={!!reminderTime}
+              disabled={reminderBusy}
+              onValueChange={(next) => {
+                if (next) {
+                  const preset = TIME_PRESETS[2]; // 6:00 PM default
+                  handleSetReminder(preset.hour, preset.minute);
+                } else {
+                  handleDisableReminder();
+                }
+              }}
+            />
+          </View>
+          <Text style={styles.tip}>
+            A local, on-device notification — no server involved — nudging
+            you to capture and sign today&apos;s photo. Tapping it opens the
+            camera directly.
+          </Text>
+
+          {reminderTime && (
+            <View style={styles.presetRow}>
+              {TIME_PRESETS.map((preset) => {
+                const active =
+                  reminderTime.hour === preset.hour && reminderTime.minute === preset.minute;
+                return (
+                  <Pressable
+                    key={preset.label}
+                    style={[styles.presetChip, active && styles.presetChipActive]}
+                    disabled={reminderBusy}
+                    onPress={() => handleSetReminder(preset.hour, preset.minute)}
+                  >
+                    <Text style={[styles.presetChipText, active && styles.presetChipTextActive]}>
+                      {preset.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
+        </View>
+
+        <View style={styles.buttonRow}>
+          <Button
+            title="Send test notification now"
+            onPress={handleSendTest}
+            disabled={sendingTest}
+          />
+        </View>
 
         <Text style={styles.sectionHeader}>Debug</Text>
 
@@ -221,6 +384,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   refreshLink: { color: "#7ab8ff", fontSize: 12 },
+  presetRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  presetChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.15)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  presetChipActive: { backgroundColor: "#8a6fe8", borderColor: "#8a6fe8" },
+  presetChipText: { color: "#c9c9d4", fontSize: 12 },
+  presetChipTextActive: { color: "#fff", fontWeight: "700" },
   spinner: { marginVertical: 12 },
   buttonRow: { marginTop: 10 },
   logHeader: {
