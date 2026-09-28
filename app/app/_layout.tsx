@@ -4,9 +4,12 @@ import { router, Stack } from "expo-router";
 import * as Notifications from "expo-notifications";
 
 import { isDailyPromptResponse } from "../src/dailyPrompt";
+import { ThemeProvider, useTheme } from "../src/themeContext";
 import { WalletProvider } from "../src/walletContext";
 
-export default function RootLayout() {
+function ThemedStack() {
+  const { mode, colors } = useTheme();
+
   // Tapping the daily-prompt notification should open the capture screen
   // directly, both from a warm app (listener) and a cold start (the tap is
   // what launched the app, so it's already sitting there waiting to be
@@ -27,13 +30,13 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <WalletProvider>
-      <StatusBar style="light" />
+    <>
+      <StatusBar style={mode === "dark" ? "light" : "dark"} />
       <Stack
         screenOptions={{
-          headerStyle: { backgroundColor: "#0d0d12" },
-          headerTintColor: "#fff",
-          contentStyle: { backgroundColor: "#0d0d12" },
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.text,
+          contentStyle: { backgroundColor: colors.background },
         }}
       >
         <Stack.Screen name="index" options={{ headerShown: false }} />
@@ -41,6 +44,16 @@ export default function RootLayout() {
         <Stack.Screen name="settings" options={{ title: "Settings" }} />
         <Stack.Screen name="post/[id]" options={{ headerShown: false }} />
       </Stack>
-    </WalletProvider>
+    </>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <ThemeProvider>
+      <WalletProvider>
+        <ThemedStack />
+      </WalletProvider>
+    </ThemeProvider>
   );
 }

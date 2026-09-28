@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -19,6 +19,8 @@ import { submitPostToFeed } from "../src/api";
 import { buildSignedMessage, hashAndEncodePhoto } from "../src/contentHash";
 import { toFriendlyMessage } from "../src/friendlyError";
 import { confirmTransaction, explorerUrl } from "../src/solanaClient";
+import { type ThemeColors } from "../src/theme";
+import { useTheme } from "../src/themeContext";
 import { useWallet } from "../src/walletContext";
 import { withTimeout } from "../src/withTimeout";
 
@@ -40,12 +42,21 @@ type FeedStatus = "idle" | "uploading" | "uploaded" | "failed";
  * asks the backend to just trust it. A feed upload failure doesn't
  * invalidate the post: the on-chain transaction already succeeded and
  * remains the real proof regardless of whether it shows up in any feed.
+ *
+ * NOTE: capture submits immediately — there's no "review before posting"
+ * step, since the whole flow (hash → sign → send) happens in one go. So the
+ * button on the result screen below is deliberately labeled "New Post", not
+ * "Retake": the photo already went on-chain and into the feed by the time
+ * you see that screen, and tapping it can't undo that — it just clears
+ * local state and lets you capture another one.
  */
 export default function CaptureScreen() {
   const { account, postProof } = useWallet();
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   // CameraView is only ever mounted while this screen is genuinely the
   // focused, visible route (see the render below) — connecting a wallet
@@ -170,7 +181,7 @@ export default function CaptureScreen() {
     }
   };
 
-  const handleRetake = () => {
+  const handleNewPost = () => {
     setPhotoUri(null);
     setImageHash(null);
     setCapturedAtMs(null);
@@ -221,11 +232,26 @@ export default function CaptureScreen() {
 
           <View style={styles.card}>
             <Text style={styles.label}>Feed</Text>
-            <Text style={styles.value}>
-              {feedStatus === "uploading" && "Uploading…"}
-              {feedStatus === "uploaded" && "Posted ✓"}
-              {feedStatus === "failed" && "Not posted to feed"}
-            </Text>
+            <View style={styles.statusRow}>
+              {feedStatus === "uploading" && (
+                <>
+                  <ActivityIndicator size="small" color={colors.textMuted} />
+                  <Text style={styles.value}>Uploading…</Text>
+                </>
+              )}
+              {feedStatus === "uploaded" && (
+                <>
+                  <Ionicons name="checkmark-circle" size={18} color={colors.success} />
+                  <Text style={[styles.value, styles.successText]}>Post successful</Text>
+                </>
+              )}
+              {feedStatus === "failed" && (
+                <>
+                  <Ionicons name="alert-circle" size={18} color={colors.warning} />
+                  <Text style={styles.value}>Not posted to feed</Text>
+                </>
+              )}
+            </View>
             {feedStatus === "failed" && feedError && (
               <Text style={styles.warning}>
                 {feedError} The on-chain proof above is still valid either way.
@@ -239,8 +265,8 @@ export default function CaptureScreen() {
           </Text>
 
           <View style={styles.resultButtonRow}>
-            <Button title="Retake" onPress={handleRetake} />
-            <Button title="Done → Feed" onPress={() => router.replace("/")} />
+            <Button title="New Post" onPress={handleNewPost} />
+            <Button title="View Feed" onPress={() => router.replace("/")} />
           </View>
         </View>
       </SafeAreaView>
@@ -290,77 +316,87 @@ export default function CaptureScreen() {
 
 const SHUTTER_SIZE = 78;
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#0d0d12" },
-  container: { flex: 1, padding: 16 },
-  centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
-  info: { color: "#fff", textAlign: "center", marginBottom: 8 },
-  preview: { width: "100%", height: 280, borderRadius: 16, marginBottom: 16 },
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    safe: { flex: 1, backgroundColor: colors.background },
+    container: { flex: 1, padding: 16 },
+    centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
+    info: { color: colors.text, textAlign: "center", marginBottom: 8 },
+    preview: { width: "100%", height: 280, borderRadius: 16, marginBottom: 16 },
 
-  overlay: {
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(0,0,0,0.55)",
-  },
-  overlayText: { color: "#fff", marginTop: 12 },
+    // The camera stage itself (preview, shutter, close button) intentionally
+    // stays on a fixed dark-with-white-icons scheme regardless of app theme
+    // — it's a full-bleed live camera feed, not a themed surface, same
+    // reasoning as the post detail screen's overlay chrome.
+    overlay: {
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: "rgba(0,0,0,0.55)",
+    },
+    overlayText: { color: "#fff", marginTop: 12 },
 
-  errorBanner: {
-    position: "absolute",
-    left: 16,
-    right: 16,
-    backgroundColor: "rgba(60,0,0,0.75)",
-    borderRadius: 10,
-    padding: 10,
-  },
-  error: { color: "#ff9b9b", textAlign: "center", fontSize: 13 },
+    errorBanner: {
+      position: "absolute",
+      left: 16,
+      right: 16,
+      backgroundColor: "rgba(60,0,0,0.75)",
+      borderRadius: 10,
+      padding: 10,
+    },
+    error: { color: "#ff9b9b", textAlign: "center", fontSize: 13 },
 
-  closeButton: {
-    position: "absolute",
-    left: 16,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+    closeButton: {
+      position: "absolute",
+      left: 16,
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: "rgba(0,0,0,0.4)",
+      alignItems: "center",
+      justifyContent: "center",
+    },
 
-  // A camera-app-style circular shutter, floating above the bottom edge
-  // (not flush against it) so it's comfortable to reach and doesn't sit
-  // under a device's gesture bar.
-  shutter: {
-    position: "absolute",
-    alignSelf: "center",
-    width: SHUTTER_SIZE,
-    height: SHUTTER_SIZE,
-    borderRadius: SHUTTER_SIZE / 2,
-    borderWidth: 4,
-    borderColor: "rgba(255,255,255,0.9)",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.15)",
-  },
-  shutterInner: {
-    width: SHUTTER_SIZE - 20,
-    height: SHUTTER_SIZE - 20,
-    borderRadius: (SHUTTER_SIZE - 20) / 2,
-    backgroundColor: "#fff",
-  },
+    // A camera-app-style circular shutter, floating above the bottom edge
+    // (not flush against it) so it's comfortable to reach and doesn't sit
+    // under a device's gesture bar.
+    shutter: {
+      position: "absolute",
+      alignSelf: "center",
+      width: SHUTTER_SIZE,
+      height: SHUTTER_SIZE,
+      borderRadius: SHUTTER_SIZE / 2,
+      borderWidth: 4,
+      borderColor: "rgba(255,255,255,0.9)",
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: "rgba(255,255,255,0.15)",
+    },
+    shutterInner: {
+      width: SHUTTER_SIZE - 20,
+      height: SHUTTER_SIZE - 20,
+      borderRadius: (SHUTTER_SIZE - 20) / 2,
+      backgroundColor: "#fff",
+    },
 
-  card: {
-    backgroundColor: "#17171f",
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 12,
-  },
-  label: { color: "#7a7a88", fontSize: 12, marginBottom: 4 },
-  value: { color: "#fff", fontSize: 13, fontFamily: "monospace" },
-  link: { color: "#7ab8ff", fontSize: 13, marginTop: 8 },
-  warning: { color: "#f5a623", fontSize: 12, marginTop: 8 },
-  note: { color: "#7a7a88", fontSize: 12, marginBottom: 16 },
-  resultButtonRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 12,
-  },
-});
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      padding: 14,
+      marginBottom: 12,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+    },
+    label: { color: colors.textMuted, fontSize: 12, marginBottom: 4 },
+    value: { color: colors.text, fontSize: 13, fontFamily: "monospace" },
+    link: { color: colors.link, fontSize: 13, marginTop: 8 },
+    statusRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+    successText: { color: colors.success, fontWeight: "700" },
+    warning: { color: colors.warning, fontSize: 12, marginTop: 8 },
+    note: { color: colors.textMuted, fontSize: 12, marginBottom: 16 },
+    resultButtonRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginTop: 12,
+    },
+  });
+}

@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -23,6 +23,8 @@ import {
 import { toFriendlyMessage } from "../src/friendlyError";
 import { bytesToHex } from "../src/mwaClient";
 import { getBalanceSol, requestDevnetAirdrop } from "../src/solanaClient";
+import { type ThemeColors } from "../src/theme";
+import { useTheme } from "../src/themeContext";
 import { useWallet } from "../src/walletContext";
 
 const DAILY_PROMPT_ID = "chainwitness-daily-prompt";
@@ -41,12 +43,16 @@ function formatHourMinute(hour: number, minute: number): string {
 }
 
 /**
- * Wallet connection, balance/airdrop, and the debug log — everything that
- * used to live on the Home screen before the feed became the app's front
- * door. This is where you connect, top up devnet SOL, and see what the
- * wallet layer is actually doing, without it cluttering the feed.
+ * Wallet connection, balance/airdrop, appearance, and the debug log —
+ * everything that used to live on the Home screen before the feed became
+ * the app's front door. This is where you connect, top up devnet SOL,
+ * switch light/dark, and see what the wallet layer is actually doing,
+ * without it cluttering the feed.
  */
 export default function SettingsScreen() {
+  const { colors, mode, setMode } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const { account, connecting, connect, signMessage } = useWallet();
   const [signatureHex, setSignatureHex] = useState<string | null>(null);
   const [signing, setSigning] = useState(false);
@@ -271,6 +277,28 @@ export default function SettingsScreen() {
           </View>
         )}
 
+        <Text style={styles.sectionHeader}>Appearance</Text>
+
+        <View style={styles.card}>
+          <Text style={styles.label}>Theme</Text>
+          <View style={styles.presetRow}>
+            {(["dark", "light"] as const).map((option) => {
+              const active = mode === option;
+              return (
+                <Pressable
+                  key={option}
+                  style={[styles.presetChip, active && styles.presetChipActive]}
+                  onPress={() => setMode(option)}
+                >
+                  <Text style={[styles.presetChipText, active && styles.presetChipTextActive]}>
+                    {option === "dark" ? "Dark" : "Light"}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
         <Text style={styles.sectionHeader}>Daily reminder</Text>
 
         <View style={styles.card}>
@@ -283,6 +311,7 @@ export default function SettingsScreen() {
             <Switch
               value={!!reminderTime}
               disabled={reminderBusy}
+              trackColor={{ false: colors.border, true: colors.accent }}
               onValueChange={(next) => {
                 if (next) {
                   const preset = TIME_PRESETS[2]; // 6:00 PM default
@@ -357,51 +386,55 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#0d0d12" },
-  container: { padding: 20, paddingBottom: 60 },
-  sectionHeader: {
-    color: "#7a7a88",
-    fontSize: 12,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginTop: 28,
-    marginBottom: 10,
-  },
-  card: {
-    backgroundColor: "#17171f",
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 12,
-  },
-  label: { color: "#7a7a88", fontSize: 12, marginBottom: 4 },
-  value: { color: "#fff", fontSize: 14, fontFamily: "monospace" },
-  warning: { color: "#f5a623", fontSize: 12, marginTop: 8 },
-  tip: { color: "#7a7a88", fontSize: 12, lineHeight: 17, marginBottom: 16 },
-  balanceRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  refreshLink: { color: "#7ab8ff", fontSize: 12 },
-  presetRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  presetChip: {
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  presetChipActive: { backgroundColor: "#8a6fe8", borderColor: "#8a6fe8" },
-  presetChipText: { color: "#c9c9d4", fontSize: 12 },
-  presetChipTextActive: { color: "#fff", fontWeight: "700" },
-  spinner: { marginVertical: 12 },
-  buttonRow: { marginTop: 10 },
-  logHeader: {
-    color: "#7a7a88",
-    fontSize: 12,
-    marginTop: 20,
-    marginBottom: 8,
-  },
-  logLine: { color: "#5f5f6e", fontSize: 11, fontFamily: "monospace", marginBottom: 4 },
-});
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    safe: { flex: 1, backgroundColor: colors.background },
+    container: { padding: 20, paddingBottom: 60 },
+    sectionHeader: {
+      color: colors.textMuted,
+      fontSize: 12,
+      textTransform: "uppercase",
+      letterSpacing: 0.5,
+      marginTop: 28,
+      marginBottom: 10,
+    },
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      padding: 14,
+      marginBottom: 12,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+    },
+    label: { color: colors.textMuted, fontSize: 12, marginBottom: 4 },
+    value: { color: colors.text, fontSize: 14, fontFamily: "monospace" },
+    warning: { color: colors.warning, fontSize: 12, marginTop: 8 },
+    tip: { color: colors.textMuted, fontSize: 12, lineHeight: 17, marginBottom: 16 },
+    balanceRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+    refreshLink: { color: colors.link, fontSize: 12 },
+    presetRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    presetChip: {
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: colors.borderStrong,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+    },
+    presetChipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
+    presetChipText: { color: colors.textSecondary, fontSize: 12 },
+    presetChipTextActive: { color: "#ffffff", fontWeight: "700" },
+    spinner: { marginVertical: 12 },
+    buttonRow: { marginTop: 10 },
+    logHeader: {
+      color: colors.textMuted,
+      fontSize: 12,
+      marginTop: 20,
+      marginBottom: 8,
+    },
+    logLine: { color: colors.textMuted, fontSize: 11, fontFamily: "monospace", marginBottom: 4 },
+  });
+}
