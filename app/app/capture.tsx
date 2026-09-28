@@ -12,7 +12,8 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { CameraView, useCameraPermissions } from "expo-camera";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { CameraView, type CameraType, useCameraPermissions } from "expo-camera";
 import { router, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -76,6 +77,23 @@ export default function CaptureScreen() {
       return () => setIsFocused(false);
     }, []),
   );
+
+  const [facing, setFacing] = useState<CameraType>("back");
+  const [torch, setTorch] = useState(false);
+  const [zoom, setZoom] = useState(0);
+
+  const pinchGesture = Gesture.Pinch().onChange((event) => {
+    setZoom((current) => Math.min(1, Math.max(0, current + (event.scaleChange - 1))));
+  });
+
+  const handleFlipCamera = () => {
+    setFacing((current) => (current === "back" ? "front" : "back"));
+    // Front cameras generally don't have a physical flash, and the two
+    // lenses' fields of view differ enough that a carried-over zoom level
+    // looks wrong after flipping — reset both rather than leave stale state.
+    setTorch(false);
+    setZoom(0);
+  };
 
   const [stage, setStage] = useState<Stage>("camera");
   const [photoUri, setPhotoUri] = useState<string | null>(null);
@@ -281,7 +299,15 @@ export default function CaptureScreen() {
   return (
     <View style={styles.safe}>
       {isFocused ? (
-        <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing="back" />
+        <GestureDetector gesture={pinchGesture}>
+          <CameraView
+            ref={cameraRef}
+            style={StyleSheet.absoluteFill}
+            facing={facing}
+            zoom={zoom}
+            enableTorch={torch && facing === "back"}
+          />
+        </GestureDetector>
       ) : (
         <View style={StyleSheet.absoluteFill} />
       )}
@@ -307,11 +333,28 @@ export default function CaptureScreen() {
           >
             <Ionicons name="close" size={24} color="#fff" />
           </Pressable>
+
+          {facing === "back" && (
+            <Pressable
+              style={[styles.flashButton, { top: insets.top + 12 }]}
+              onPress={() => setTorch((t) => !t)}
+            >
+              <Ionicons name={torch ? "flash" : "flash-off"} size={22} color="#fff" />
+            </Pressable>
+          )}
+
           <Pressable
             style={[styles.shutter, { bottom: insets.bottom + 48 }]}
             onPress={handleCapture}
           >
             <View style={styles.shutterInner} />
+          </Pressable>
+
+          <Pressable
+            style={[styles.flipButton, { bottom: insets.bottom + 62 }]}
+            onPress={handleFlipCamera}
+          >
+            <Ionicons name="camera-reverse-outline" size={26} color="#fff" />
           </Pressable>
         </>
       )}
@@ -362,6 +405,26 @@ function createStyles(colors: ThemeColors) {
       width: 40,
       height: 40,
       borderRadius: 20,
+      backgroundColor: "rgba(0,0,0,0.4)",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    flashButton: {
+      position: "absolute",
+      right: 16,
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: "rgba(0,0,0,0.4)",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    flipButton: {
+      position: "absolute",
+      right: 28,
+      width: 48,
+      height: 48,
+      borderRadius: 24,
       backgroundColor: "rgba(0,0,0,0.4)",
       alignItems: "center",
       justifyContent: "center",
