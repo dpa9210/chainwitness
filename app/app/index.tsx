@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -16,6 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { fetchFeed, type FeedPost } from "../src/api";
 import { setFeedCache } from "../src/feedCache";
 import { toFriendlyMessage } from "../src/friendlyError";
+import { hasCompletedOnboarding } from "../src/onboarding";
 import { SeekerBadge } from "../src/SeekerBadge";
 import { type ThemeColors } from "../src/theme";
 import { useTheme } from "../src/themeContext";
@@ -64,6 +65,20 @@ export default function FeedScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Runs once, on the app's very first mount (index is the initial route
+  // and stays mounted for the app's lifetime, so this never re-fires when
+  // navigating back here from Settings or a post) — not on focus.
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
+  useEffect(() => {
+    hasCompletedOnboarding().then((seen) => {
+      if (seen) {
+        setOnboardingChecked(true);
+      } else {
+        router.replace("/onboarding");
+      }
+    });
+  }, []);
+
   const load = useCallback(async (isRefresh: boolean) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
@@ -86,6 +101,10 @@ export default function FeedScreen() {
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []),
   );
+
+  if (!onboardingChecked) {
+    return <View style={styles.safe} />;
+  }
 
   return (
     // Only the top edge is handled by SafeAreaView's own padding — the
