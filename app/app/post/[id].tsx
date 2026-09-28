@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -18,6 +18,8 @@ import { toFriendlyMessage } from "../../src/friendlyError";
 import { getCachedPost } from "../../src/feedCache";
 import { SeekerBadge } from "../../src/SeekerBadge";
 import { DEFAULT_TIP_LAMPORTS, explorerUrl } from "../../src/solanaClient";
+import { type ThemeColors } from "../../src/theme";
+import { useTheme } from "../../src/themeContext";
 import { useWallet } from "../../src/walletContext";
 
 const TIP_SOL_LABEL = (DEFAULT_TIP_LAMPORTS / 1_000_000_000).toString();
@@ -35,6 +37,8 @@ type TipStatus = "idle" | "sending" | "sent" | "failed";
  */
 export default function PostDetailScreen() {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { id } = useLocalSearchParams<{ id: string }>();
   const post = getCachedPost(id);
 
@@ -146,50 +150,56 @@ export default function PostDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#0d0d12" },
-  overlaySafe: { flex: 1, justifyContent: "space-between" },
-  centered: { flex: 1, alignItems: "center", justifyContent: "center", padding: 32 },
-  info: { color: "#fff", textAlign: "center" },
+function createStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    safe: { flex: 1, backgroundColor: colors.background },
+    overlaySafe: { flex: 1, justifyContent: "space-between" },
+    centered: { flex: 1, alignItems: "center", justifyContent: "center", padding: 32 },
+    info: { color: colors.text, textAlign: "center" },
 
-  topScrim: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "rgba(0,0,0,0.35)",
-  },
-  closeButton: {
-    margin: 16,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  spacer: { flex: 1 },
+    // This screen is always a photo full-bleed under overlays, so its
+    // chrome (scrim, close button, bottom panel) intentionally stays on a
+    // fixed dark/white-on-black scheme regardless of the app's light/dark
+    // setting — the same way it would over any bright or dark photo.
+    topScrim: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: "rgba(0,0,0,0.35)",
+    },
+    closeButton: {
+      margin: 16,
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: "rgba(0,0,0,0.4)",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    spacer: { flex: 1 },
 
-  bottomPanel: {
-    padding: 16,
-    paddingTop: 40,
-    gap: 4,
-    backgroundColor: "rgba(13,13,18,0.55)",
-  },
-  authorRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  author: { color: "#fff", fontSize: 16, fontFamily: "monospace", fontWeight: "700" },
-  timestamp: { color: "#e5e5ea", fontSize: 13 },
-  link: { color: "#cfe4ff", fontSize: 14, marginTop: 4 },
+    bottomPanel: {
+      padding: 16,
+      paddingTop: 40,
+      gap: 4,
+      backgroundColor: "rgba(13,13,18,0.55)",
+    },
+    authorRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+    author: { color: "#fff", fontSize: 16, fontFamily: "monospace", fontWeight: "700" },
+    timestamp: { color: "#e5e5ea", fontSize: 13 },
+    link: { color: "#cfe4ff", fontSize: 14, marginTop: 4 },
 
-  tipRow: { flexDirection: "row", alignItems: "center", gap: 16, marginTop: 14 },
-  tipButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "#fff",
-    borderRadius: 999,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-  },
-  tipButtonText: { color: "#0d0d12", fontWeight: "700", fontSize: 14 },
-});
+    tipRow: { flexDirection: "row", alignItems: "center", gap: 16, marginTop: 14 },
+    tipButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      backgroundColor: "#fff",
+      borderRadius: 999,
+      paddingHorizontal: 18,
+      paddingVertical: 10,
+    },
+    tipButtonText: { color: "#0d0d12", fontWeight: "700", fontSize: 14 },
+  });
+}

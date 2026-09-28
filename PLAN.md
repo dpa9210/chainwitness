@@ -161,6 +161,42 @@ itself couldn't be shown a screen. Never claim "unfakeable."
         new code so the project now lints clean rather than leaving mixed
         signal for the next real lint run.
 
+- [x] Light/dark theme + capture-screen result copy fixes. **Built
+      2026-09-28**, from on-device feedback after testing the daily
+      reminder:
+      - **Light mode**: `src/theme.ts` defines a `dark`/`light` color-token
+        palette (the dark one is exactly the app's original hardcoded
+        colors, lifted out so both live in one place); `src/themeContext.tsx`
+        provides a `ThemeProvider`/`useTheme()` hook, persisted via
+        `@react-native-async-storage/async-storage` (new native dependency
+        — needed a rebuild) so the choice survives a restart. Default stays
+        dark — this was always the app's only look, light is opt-in.
+        Settings gained an "Appearance" section (Dark/Light chips, same
+        pattern as the reminder time presets). All four screens
+        (`index.tsx`, `settings.tsx`, `capture.tsx`, `post/[id].tsx`) and
+        the root Stack header now build their `StyleSheet` from
+        `useTheme().colors` via a `createStyles(colors)` function instead
+        of hardcoded hex, and `expo-status-bar`'s `style` flips
+        light/dark with the theme. Deliberate exception: the post-detail
+        screen's photo-overlay chrome and the capture screen's camera-stage
+        chrome (shutter, close button) stay a fixed dark/white-icon scheme
+        in both themes — they sit on top of a live photo or camera feed,
+        not a themed surface, so tying them to the app theme would fight
+        against legibility over arbitrary photo content instead of helping
+        it, same reasoning as the existing top-scrim.
+      - **Capture result screen**: on-device testing raised two real
+        clarity issues. First, "Retake" didn't actually retake anything —
+        by the time that screen shows, the photo has already gone on-chain
+        and into the feed (capture submits immediately, there's no
+        review-before-posting step), so tapping it only clears local state
+        for a new capture. Relabeled to **"New Post"** (and the handler
+        renamed `handleNewPost`) so the label matches what it does. Second,
+        **"Done → Feed" renamed to "View Feed"**. Third, the feed-upload
+        status row replaced its plain "Posted ✓" text with an
+        `Ionicons` checkmark-circle in green plus "Post successful" wording
+        (amber alert-circle + existing message for the failed case),
+        consistent with the checkmark-icon treatment used elsewhere.
+
 ### Should have (only after Tier A is fully working end-to-end)
 - [ ] Streak counter for consecutive daily posts.
 - [ ] Nicer feed/animation polish, haptics on capture + sign success.
