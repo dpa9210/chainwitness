@@ -6,6 +6,7 @@ import {
   Image,
   Linking,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -197,7 +198,7 @@ export default function CaptureScreen() {
   if (isResultStage && photoUri && imageHash && signature && capturedAtMs) {
     return (
       <SafeAreaView style={styles.safe}>
-        <View style={styles.container}>
+        <ScrollView contentContainerStyle={styles.container}>
           <Image source={{ uri: photoUri }} style={styles.preview} />
 
           <View style={styles.card}>
@@ -268,7 +269,7 @@ export default function CaptureScreen() {
             <Button title="New Post" onPress={handleNewPost} />
             <Button title="View Feed" onPress={() => router.replace("/")} />
           </View>
-        </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -319,7 +320,13 @@ const SHUTTER_SIZE = 78;
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
     safe: { flex: 1, backgroundColor: colors.background },
-    container: { flex: 1, padding: 16 },
+    // Used as a ScrollView's contentContainerStyle (not a flex:1 View) —
+    // this screen's content can run longer than the shortest screen it's
+    // tested on (the result cards + two buttons didn't fit on a phone with
+    // a different aspect ratio than the primary dev device, pushing the
+    // buttons below the visible area with no way to reach them). Scrolling
+    // is the fix that works for any screen size, not just the ones on hand.
+    container: { padding: 16, paddingBottom: 32 },
     centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
     info: { color: colors.text, textAlign: "center", marginBottom: 8 },
     preview: { width: "100%", height: 280, borderRadius: 16, marginBottom: 16 },
