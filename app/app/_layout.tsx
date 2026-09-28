@@ -4,6 +4,7 @@ import { router, Stack } from "expo-router";
 import * as Notifications from "expo-notifications";
 import * as SplashScreen from "expo-splash-screen";
 import { ChakraPetch_700Bold, useFonts } from "@expo-google-fonts/chakra-petch";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { isDailyPromptResponse } from "../src/dailyPrompt";
 import { ThemeProvider, useTheme } from "../src/themeContext";
@@ -73,10 +74,15 @@ export default function RootLayout() {
   if (!ready) return null;
 
   return (
-    <ThemeProvider>
-      <WalletProvider>
-        <ThemedStack />
-      </WalletProvider>
-    </ThemeProvider>
+    // Required by react-native-gesture-handler v2 (pinch-to-zoom on the
+    // capture screen) — must wrap the whole app, not just the screen that
+    // uses it.
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeProvider>
+        <WalletProvider>
+          <ThemedStack />
+        </WalletProvider>
+      </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }
