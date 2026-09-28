@@ -264,12 +264,16 @@ export default function CaptureScreen() {
             This is a real devnet transaction, signed and sent by your own
             wallet.
           </Text>
-
-          <View style={styles.resultButtonRow}>
-            <Button title="New Post" onPress={handleNewPost} />
-            <Button title="View Feed" onPress={() => router.replace("/")} />
-          </View>
         </ScrollView>
+
+        {/* Outside the ScrollView, deliberately — these are the two actions
+            someone actually needs after posting, so they stay reachable
+            without scrolling on any screen size, instead of only the tallest
+            device the info cards above happened to fit on. */}
+        <View style={styles.resultButtonRow}>
+          <Button title="New Post" onPress={handleNewPost} />
+          <Button title="View Feed" onPress={() => router.replace("/")} />
+        </View>
       </SafeAreaView>
     );
   }
@@ -403,7 +407,12 @@ function createStyles(colors: ThemeColors) {
     resultButtonRow: {
       flexDirection: "row",
       justifyContent: "space-between",
-      marginTop: 12,
+      paddingHorizontal: 16,
+      paddingTop: 12,
+      paddingBottom: 12,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.border,
+      backgroundColor: colors.background,
     },
   });
 }
