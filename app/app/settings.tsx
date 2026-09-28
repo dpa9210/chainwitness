@@ -11,7 +11,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useFocusEffect } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import * as Notifications from "expo-notifications";
 
 import {
@@ -355,6 +355,15 @@ export default function SettingsScreen() {
             title="Send test notification now"
             onPress={handleSendTest}
             disabled={sendingTest}
+          />
+        </View>
+
+        <Text style={styles.sectionHeader}>About</Text>
+
+        <View style={styles.buttonRow}>
+          <Button
+            title="Replay intro screen"
+            onPress={() => router.push("/onboarding")}
           />
         </View>
 

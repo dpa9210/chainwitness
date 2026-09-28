@@ -213,6 +213,19 @@ itself couldn't be shown a screen. Never claim "unfakeable."
       native module or config — no rebuild needed, Metro hot-reloads it on
       both connected devices.
 
+- [x] First-run onboarding screen. **Built 2026-09-28**
+      (`app/app/onboarding.tsx`, `src/onboarding.ts`) — three tap-through
+      slides (share unique moments / on-chain proof / get tipped) shown once
+      before the feed, gated by an AsyncStorage flag checked from
+      `index.tsx` on its first mount (not on every focus — index is the
+      permanent initial route, so this genuinely only runs once per
+      install). Fails open on a storage error (treats it as "already
+      seen") so a broken read can never trap someone on the intro forever.
+      Tap-through rather than a real swipe pager, to avoid a new native
+      pager-view dependency for three slides. Settings gained a "Replay
+      intro screen" button (About section) so it can be revisited for a
+      demo without clearing app data. Pure JS, no rebuild needed.
+
 ### Should have (only after Tier A is fully working end-to-end)
 - [ ] Streak counter for consecutive daily posts.
 - [ ] Nicer feed/animation polish, haptics on capture + sign success.
