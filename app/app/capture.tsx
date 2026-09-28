@@ -1,17 +1,20 @@
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Button,
   Image,
   Linking,
+  Pressable,
   SafeAreaView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 
 import { submitPostToFeed } from "../src/api";
 import { buildSignedMessage, hashAndEncodePhoto } from "../src/contentHash";
@@ -43,6 +46,25 @@ export default function CaptureScreen() {
   const { account, postProof } = useWallet();
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
+  const insets = useSafeAreaInsets();
+
+  // CameraView is only ever mounted while this screen is genuinely the
+  // focused, visible route (see the render below) — connecting a wallet
+  // opens an external wallet app, which backgrounds/resumes this Activity
+  // and updates context state that this screen (still mounted, just
+  // hidden behind whatever screen the user navigated to) would otherwise
+  // react to immediately. Mounting the native camera while off-screen left
+  // its preview permanently blank even after navigating back to it, and
+  // takePictureAsync() on that broken session is what produced the
+  // generic "Something went wrong" error — the camera was never actually
+  // running.
+  const [isFocused, setIsFocused] = useState(false);
+  useFocusEffect(
+    useCallback(() => {
+      setIsFocused(true);
+      return () => setIsFocused(false);
+    }, []),
+  );
 
   const [stage, setStage] = useState<Stage>("camera");
   const [photoUri, setPhotoUri] = useState<string | null>(null);
@@ -217,8 +239,9 @@ export default function CaptureScreen() {
             wallet.
           </Text>
 
-          <View style={styles.buttonRow}>
+          <View style={styles.resultButtonRow}>
             <Button title="Retake" onPress={handleRetake} />
+            <Button title="Done → Feed" onPress={() => router.replace("/")} />
           </View>
         </View>
       </SafeAreaView>
@@ -226,44 +249,105 @@ export default function CaptureScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.container}>
-        <CameraView ref={cameraRef} style={styles.camera} facing="back" />
-        {stage === "processing" ? (
-          <View style={styles.overlay}>
-            <ActivityIndicator size="large" color="#fff" />
-            <Text style={styles.overlayText}>Hashing + signing + sending…</Text>
-          </View>
-        ) : (
-          <View style={styles.buttonRow}>
-            <Button title="Capture & Post" onPress={handleCapture} />
-          </View>
-        )}
-        {error && <Text style={styles.error}>{error}</Text>}
-      </View>
-    </SafeAreaView>
+    <View style={styles.safe}>
+      {isFocused ? (
+        <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing="back" />
+      ) : (
+        <View style={StyleSheet.absoluteFill} />
+      )}
+
+      {stage === "processing" && (
+        <View style={[StyleSheet.absoluteFill, styles.overlay]}>
+          <ActivityIndicator size="large" color="#fff" />
+          <Text style={styles.overlayText}>Hashing + signing + sending…</Text>
+        </View>
+      )}
+
+      {error && (
+        <View style={[styles.errorBanner, { top: insets.top + 12 }]}>
+          <Text style={styles.error}>{error}</Text>
+        </View>
+      )}
+
+      {stage === "camera" && (
+        <>
+          <Pressable
+            style={[styles.closeButton, { top: insets.top + 12 }]}
+            onPress={() => router.back()}
+          >
+            <Ionicons name="close" size={24} color="#fff" />
+          </Pressable>
+          <Pressable
+            style={[styles.shutter, { bottom: insets.bottom + 48 }]}
+            onPress={handleCapture}
+          >
+            <View style={styles.shutterInner} />
+          </Pressable>
+        </>
+      )}
+    </View>
   );
 }
+
+const SHUTTER_SIZE = 78;
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#0d0d12" },
   container: { flex: 1, padding: 16 },
   centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
   info: { color: "#fff", textAlign: "center", marginBottom: 8 },
-  camera: { flex: 1, borderRadius: 16, overflow: "hidden" },
   preview: { width: "100%", height: 280, borderRadius: 16, marginBottom: 16 },
+
   overlay: {
-    position: "absolute",
-    top: 0,
-    left: 16,
-    right: 16,
-    bottom: 0,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(0,0,0,0.4)",
-    borderRadius: 16,
+    backgroundColor: "rgba(0,0,0,0.55)",
   },
   overlayText: { color: "#fff", marginTop: 12 },
+
+  errorBanner: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    backgroundColor: "rgba(60,0,0,0.75)",
+    borderRadius: 10,
+    padding: 10,
+  },
+  error: { color: "#ff9b9b", textAlign: "center", fontSize: 13 },
+
+  closeButton: {
+    position: "absolute",
+    left: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  // A camera-app-style circular shutter, floating above the bottom edge
+  // (not flush against it) so it's comfortable to reach and doesn't sit
+  // under a device's gesture bar.
+  shutter: {
+    position: "absolute",
+    alignSelf: "center",
+    width: SHUTTER_SIZE,
+    height: SHUTTER_SIZE,
+    borderRadius: SHUTTER_SIZE / 2,
+    borderWidth: 4,
+    borderColor: "rgba(255,255,255,0.9)",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.15)",
+  },
+  shutterInner: {
+    width: SHUTTER_SIZE - 20,
+    height: SHUTTER_SIZE - 20,
+    borderRadius: (SHUTTER_SIZE - 20) / 2,
+    backgroundColor: "#fff",
+  },
+
   card: {
     backgroundColor: "#17171f",
     borderRadius: 12,
@@ -275,6 +359,9 @@ const styles = StyleSheet.create({
   link: { color: "#7ab8ff", fontSize: 13, marginTop: 8 },
   warning: { color: "#f5a623", fontSize: 12, marginTop: 8 },
   note: { color: "#7a7a88", fontSize: 12, marginBottom: 16 },
-  buttonRow: { marginTop: 12 },
-  error: { color: "#ff6b6b", marginTop: 12, textAlign: "center" },
+  resultButtonRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 12,
+  },
 });

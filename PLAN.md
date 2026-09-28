@@ -145,7 +145,49 @@ itself couldn't be shown a screen. Never claim "unfakeable."
         which only takes effect through Continuous Native Generation on a
         full rebuild, same requirement as a new native module for a
         different reason.
-      - Not yet confirmed on-device.
+
+      **2026-09-28 — on-device testing found a real bug and drove a design
+      pivot, both fixed same day:**
+      - **Bug**: opening the app fresh, tapping New Post with no wallet
+        connected, connecting from the Settings prompt, then returning to
+        Capture showed a permanently blank camera; taking a photo failed
+        with a generic error. Root cause: `CameraView` was mounted purely
+        based on `account` being present, with no check on whether the
+        screen was actually the visible/focused route. Connecting a
+        wallet launches an external wallet app (Phantom/Solflare) via an
+        Android intent, which backgrounds/resumes this app's Activity;
+        the resulting `account` update reaches every mounted consumer via
+        context regardless of visibility, so Capture (still mounted,
+        hidden behind Settings) rendered its camera branch for the first
+        time while off-screen. Android's native camera preview surface
+        never properly attached having been created while occluded, and
+        `takePictureAsync()` against that broken session is what produced
+        the generic error. **Fixed**: `app/capture.tsx` now gates
+        `CameraView` mounting on `useFocusEffect`-tracked screen focus in
+        addition to `account`, so the camera is only ever created while
+        the screen is genuinely visible.
+      - **Design pivot, by user request**: the TikTok-style one-post-per-
+        screen swipe pager didn't fit — moved to an **Instagram-style**
+        scrollable feed instead. `app/index.tsx` is back to a normal
+        scrolling list of cards (author row above a 4:5 photo, tap
+        anywhere to open); a new dynamic route `app/post/[id].tsx` shows
+        the full-screen detail view (bigger image, badge, proof link, tip
+        button) that used to be inline per feed item. Posts are handed to
+        the detail screen via a small in-memory cache
+        (`src/feedCache.ts`) populated when the feed loads, rather than a
+        new backend endpoint — noted as the thing to build properly if
+        deep-linking to a single post ever becomes a real requirement.
+      - **Capture screen redesigned** per explicit feedback: the camera
+        preview is now genuinely full-bleed (no padded container), with a
+        circular camera-app-style shutter button floating above the
+        bottom edge (safe-area inset + extra margin) instead of a plain
+        `<Button>` in a row flush against it. Both Capture and the new
+        post detail screen lost their native header in favor of an
+        overlaid circular close (×) button, consistent with the
+        edge-to-edge look everywhere else.
+      - Still not confirmed on-device as of this write-up — next build
+        needs to verify both the bug fix and the new feed/detail/capture
+        UI.
 
 ### Explicitly out of scope
 - No custom Anchor program — a memo transaction is sufficient proof of

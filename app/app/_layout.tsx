@@ -15,8 +15,9 @@ export default function RootLayout() {
         }}
       >
         <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="capture" options={{ title: "New Post" }} />
+        <Stack.Screen name="capture" options={{ headerShown: false }} />
         <Stack.Screen name="settings" options={{ title: "Settings" }} />
+        <Stack.Screen name="post/[id]" options={{ headerShown: false }} />
       </Stack>
     </WalletProvider>
   );
