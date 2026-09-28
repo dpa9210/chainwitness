@@ -97,7 +97,7 @@ function createStyles(colors: ThemeColors) {
       paddingHorizontal: 20,
       paddingTop: 8,
     },
-    wordmark: { color: colors.text, fontSize: 16, fontWeight: "700" },
+    wordmark: { color: colors.text, fontSize: 17, fontFamily: "ChakraPetch_700Bold" },
     skip: { color: colors.textMuted, fontSize: 14 },
 
     content: {

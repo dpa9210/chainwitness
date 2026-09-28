@@ -173,7 +173,7 @@ function createStyles(colors: ThemeColors) {
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.border,
     },
-    wordmark: { color: colors.text, fontSize: 18, fontWeight: "700" },
+    wordmark: { color: colors.text, fontSize: 19, fontFamily: "ChakraPetch_700Bold" },
 
     // Each post is a genuine card — its own background a shade different
     // from the screen, rounded, with real spacing between cards — rather

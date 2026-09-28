@@ -226,6 +226,34 @@ itself couldn't be shown a screen. Never claim "unfakeable."
       intro screen" button (About section) so it can be revisited for a
       demo without clearing app data. Pure JS, no rebuild needed.
 
+- [x] Custom wordmark typeface + native splash screen. **Built 2026-09-28** —
+      presented 3 font drafts (Space Grotesk / Chakra Petch / Orbitron) as
+      an Artifact for a side-by-side comparison before committing to one;
+      user picked **Chakra Petch** (cut-corner tech/crypto letterforms).
+      - `@expo-google-fonts/chakra-petch` loaded via `useFonts` in the root
+        layout; applied to the two literal "ChainWitness" wordmark
+        instances (`index.tsx` home title, `onboarding.tsx`). Not applied
+        to body text or other headings — this was specifically about the
+        app's name, not a full typography overhaul.
+      - **Native splash screen** (`expo-splash-screen`, newly installed):
+        dark background (`#0d0d12`, matching the app's own default) with
+        the wordmark as a static image, since the native splash renders
+        before any JS — including the custom font — is available. Rendered
+        with Python/PIL directly from the installed package's own
+        `ChakraPetch_700Bold.ttf` (so it's pixel-identical to the in-app
+        font, not a lookalike) in the app's accent purple (`#8a6fe8`),
+        transparent background, cropped tight.
+      - `SplashScreen.preventAutoHideAsync()` at module scope +
+        `hideAsync()` once `useFonts` resolves (success or error) — keeps
+        the native splash (with its static wordmark image) up until the
+        in-app font is actually ready, so there's no flash from a system
+        font to Chakra Petch right after launch. A font-load error still
+        lets the app proceed (falls back to the system font) rather than
+        getting stuck on the splash screen forever.
+      - New native module (`expo-splash-screen`) + native config change
+        (the plugin) — needs a rebuild, unlike the font package itself
+        (which only needed `expo-font`, already linked).
+
 ### Should have (only after Tier A is fully working end-to-end)
 - [ ] Streak counter for consecutive daily posts.
 - [ ] Nicer feed/animation polish, haptics on capture + sign success.
