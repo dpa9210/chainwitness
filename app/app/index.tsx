@@ -1,144 +1,72 @@
 import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
-  Linking,
   Pressable,
   RefreshControl,
+  SafeAreaView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { Image } from "expo-image";
 import { router, useFocusEffect } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { PublicKey } from "@solana/web3.js";
 import { Ionicons } from "@expo/vector-icons";
 
 import { fetchFeed, type FeedPost } from "../src/api";
+import { setFeedCache } from "../src/feedCache";
 import { toFriendlyMessage } from "../src/friendlyError";
-import { DEFAULT_TIP_LAMPORTS, explorerUrl } from "../src/solanaClient";
-import { useWallet } from "../src/walletContext";
-
-const TIP_SOL_LABEL = (DEFAULT_TIP_LAMPORTS / 1_000_000_000).toString();
-const BOTTOM_BAR_HEIGHT = 88;
 
 function shortAddress(address: string): string {
   return `${address.slice(0, 4)}…${address.slice(-4)}`;
 }
 
-type TipStatus = "idle" | "sending" | "sent" | "failed";
-
-/**
- * One full-screen post — the "page" in the TikTok-style vertical pager.
- * The photo fills the screen; everything else is an overlay on top of it,
- * positioned to clear the persistent top/bottom bars (siblings in the
- * parent, not part of this item, so they never scroll away).
- */
-function PostPage({ post, height }: { post: FeedPost; height: number }) {
-  const { account, tip } = useWallet();
-  const [tipStatus, setTipStatus] = useState<TipStatus>("idle");
-  const [tipSignature, setTipSignature] = useState<string | null>(null);
-
-  const isOwnPost = account?.publicKey.toBase58() === post.authorPubkey;
-
-  const handleTip = async () => {
-    if (!account) {
-      Alert.alert(
-        "Connect a wallet",
-        "Connect a wallet in Settings before tipping.",
-        [
-          { text: "Cancel", style: "cancel" },
-          { text: "Go to Settings", onPress: () => router.push("/settings") },
-        ],
-      );
-      return;
-    }
-    setTipStatus("sending");
-    try {
-      const sig = await tip(new PublicKey(post.authorPubkey));
-      setTipSignature(sig);
-      setTipStatus("sent");
-    } catch (err) {
-      setTipStatus("failed");
-      Alert.alert("Tip failed", toFriendlyMessage(err));
-    }
-  };
-
+function PostCard({ post }: { post: FeedPost }) {
   return (
-    <View style={{ height, width: "100%" }}>
+    <Pressable
+      style={styles.card}
+      onPress={() => router.push(`/post/${post.id}`)}
+    >
+      <View style={styles.cardHeader}>
+        <Text style={styles.author}>{shortAddress(post.authorPubkey)}</Text>
+        {post.hasSgt && (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>Seeker ✓</Text>
+          </View>
+        )}
+      </View>
+
       <Image
         source={post.imageUrl}
-        style={StyleSheet.absoluteFill}
+        style={styles.photo}
         contentFit="cover"
         transition={150}
       />
 
-      {/* Bottom-left: author + badge + timestamp + proof link */}
-      <View style={[styles.bottomLeft, { bottom: BOTTOM_BAR_HEIGHT + 24 }]}>
-        <View style={styles.authorRow}>
-          <Text style={styles.author}>{shortAddress(post.authorPubkey)}</Text>
-          {post.hasSgt && (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>Seeker ✓</Text>
-            </View>
-          )}
-        </View>
+      <View style={styles.cardFooter}>
         <Text style={styles.timestamp}>
           {new Date(post.capturedAtMs).toLocaleString()}
         </Text>
-        <Pressable onPress={() => Linking.openURL(explorerUrl(post.txSignature))}>
-          <Text style={styles.link}>View proof on Explorer →</Text>
-        </Pressable>
+        <Text style={styles.tapHint}>Tap for details & tip →</Text>
       </View>
-
-      {/* Right-side action stack: tip button, plus a link once sent */}
-      {!isOwnPost && (
-        <View style={[styles.rightStack, { bottom: BOTTOM_BAR_HEIGHT + 24 }]}>
-          <Pressable
-            style={styles.actionButton}
-            onPress={handleTip}
-            disabled={tipStatus === "sending" || tipStatus === "sent"}
-          >
-            {tipStatus === "sending" ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Ionicons
-                name={tipStatus === "sent" ? "checkmark-circle" : "cash-outline"}
-                size={30}
-                color={tipStatus === "sent" ? "#7ef29c" : "#fff"}
-              />
-            )}
-          </Pressable>
-          <Text style={styles.actionLabel}>
-            {tipStatus === "sent" ? "Tipped" : `Tip ${TIP_SOL_LABEL}`}
-          </Text>
-          {tipStatus === "sent" && tipSignature && (
-            <Pressable onPress={() => Linking.openURL(explorerUrl(tipSignature))}>
-              <Text style={styles.actionSubLink}>view →</Text>
-            </Pressable>
-          )}
-        </View>
-      )}
-    </View>
+    </Pressable>
   );
 }
 
 export default function FeedScreen() {
-  const insets = useSafeAreaInsets();
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pageHeight, setPageHeight] = useState<number | null>(null);
 
   const load = useCallback(async (isRefresh: boolean) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     setError(null);
     try {
-      setPosts(await fetchFeed());
+      const result = await fetchFeed();
+      setPosts(result);
+      setFeedCache(result);
     } catch (err) {
       setError(toFriendlyMessage(err));
     } finally {
@@ -155,11 +83,12 @@ export default function FeedScreen() {
   );
 
   return (
-    <View
-      style={styles.safe}
-      onLayout={(e) => setPageHeight(e.nativeEvent.layout.height)}
-    >
-      {loading || pageHeight === null ? (
+    <SafeAreaView style={styles.safe}>
+      <View style={styles.topBar}>
+        <Text style={styles.wordmark}>ChainWitness</Text>
+      </View>
+
+      {loading ? (
         <View style={styles.centered}>
           <ActivityIndicator color="#fff" />
         </View>
@@ -167,16 +96,8 @@ export default function FeedScreen() {
         <FlatList
           data={posts}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <PostPage post={item} height={pageHeight} />}
-          pagingEnabled
-          showsVerticalScrollIndicator={false}
-          decelerationRate="fast"
-          snapToInterval={pageHeight}
-          getItemLayout={(_, index) => ({
-            length: pageHeight,
-            offset: pageHeight * index,
-            index,
-          })}
+          renderItem={({ item }) => <PostCard post={item} />}
+          contentContainerStyle={styles.list}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -185,7 +106,7 @@ export default function FeedScreen() {
             />
           }
           ListEmptyComponent={
-            <View style={[styles.centered, { height: pageHeight }]}>
+            <View style={styles.centered}>
               <Text style={styles.emptyText}>
                 {error ?? "No posts yet. Be the first to post."}
               </Text>
@@ -194,18 +115,7 @@ export default function FeedScreen() {
         />
       )}
 
-      {/* Persistent top bar */}
-      <View style={[styles.topBar, { paddingTop: insets.top + 10 }]}>
-        <Text style={styles.wordmark}>ChainWitness</Text>
-      </View>
-
-      {/* Persistent bottom bar — the TikTok-style tab row */}
-      <View
-        style={[
-          styles.bottomBar,
-          { height: BOTTOM_BAR_HEIGHT + insets.bottom, paddingBottom: insets.bottom },
-        ]}
-      >
+      <View style={styles.bottomBar}>
         <Pressable style={styles.tabButton} onPress={() => load(true)}>
           <Ionicons name="home" size={26} color="#fff" />
         </Pressable>
@@ -218,41 +128,33 @@ export default function FeedScreen() {
           <Ionicons name="settings-outline" size={26} color="#fff" />
         </Pressable>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#0d0d12" },
-  centered: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32 },
+  centered: { flex: 1, alignItems: "center", justifyContent: "center", paddingTop: 80, paddingHorizontal: 32 },
   emptyText: { color: "#7a7a88", textAlign: "center", fontSize: 14 },
 
   topBar: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
     paddingHorizontal: 16,
-    paddingBottom: 10,
-    backgroundColor: "rgba(13,13,18,0.35)",
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(255,255,255,0.08)",
   },
   wordmark: { color: "#fff", fontSize: 18, fontWeight: "700" },
 
-  bottomLeft: {
-    position: "absolute",
-    left: 16,
-    right: 90,
-    gap: 4,
+  list: { paddingVertical: 12 },
+  card: { marginBottom: 20 },
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingBottom: 10,
   },
-  authorRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  author: {
-    color: "#fff",
-    fontSize: 15,
-    fontFamily: "monospace",
-    fontWeight: "700",
-    textShadowColor: "rgba(0,0,0,0.6)",
-    textShadowRadius: 4,
-  },
+  author: { color: "#fff", fontSize: 14, fontFamily: "monospace", fontWeight: "700" },
   badge: {
     backgroundColor: "rgba(42,33,64,0.85)",
     borderColor: "#8a6fe8",
@@ -262,63 +164,37 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   badgeText: { color: "#c9bbfb", fontSize: 11, fontWeight: "600" },
-  timestamp: {
-    color: "#e5e5ea",
-    fontSize: 12,
-    textShadowColor: "rgba(0,0,0,0.6)",
-    textShadowRadius: 4,
-  },
-  link: {
-    color: "#cfe4ff",
-    fontSize: 13,
-    marginTop: 2,
-    textShadowColor: "rgba(0,0,0,0.6)",
-    textShadowRadius: 4,
-  },
 
-  rightStack: {
-    position: "absolute",
-    right: 14,
+  photo: { width: "100%", aspectRatio: 4 / 5, backgroundColor: "#17171f" },
+
+  cardFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    gap: 4,
+    paddingHorizontal: 16,
+    paddingTop: 10,
   },
-  actionButton: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: "rgba(0,0,0,0.35)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  actionLabel: {
-    color: "#fff",
-    fontSize: 11,
-    textShadowColor: "rgba(0,0,0,0.6)",
-    textShadowRadius: 4,
-  },
-  actionSubLink: { color: "#cfe4ff", fontSize: 11 },
+  timestamp: { color: "#7a7a88", fontSize: 12 },
+  tapHint: { color: "#7ab8ff", fontSize: 12 },
 
   bottomBar: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-evenly",
-    backgroundColor: "rgba(13,13,18,0.55)",
+    height: 64,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "#0d0d12",
   },
   tabButton: { padding: 10 },
   postButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: "#fff",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: -18,
+    marginTop: -20,
     shadowColor: "#000",
     shadowOpacity: 0.3,
     shadowRadius: 8,
