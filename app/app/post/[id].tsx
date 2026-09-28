@@ -4,11 +4,11 @@ import {
   Alert,
   Linking,
   Pressable,
-  SafeAreaView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { PublicKey } from "@solana/web3.js";
@@ -16,6 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { toFriendlyMessage } from "../../src/friendlyError";
 import { getCachedPost } from "../../src/feedCache";
+import { SeekerBadge } from "../../src/SeekerBadge";
 import { DEFAULT_TIP_LAMPORTS, explorerUrl } from "../../src/solanaClient";
 import { useWallet } from "../../src/walletContext";
 
@@ -33,6 +34,7 @@ type TipStatus = "idle" | "sending" | "sent" | "failed";
  * screen) rather than a fresh fetch — see that file for why.
  */
 export default function PostDetailScreen() {
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const post = getCachedPost(id);
 
@@ -81,21 +83,28 @@ export default function PostDetailScreen() {
     <View style={styles.safe}>
       <Image source={post.imageUrl} style={StyleSheet.absoluteFill} contentFit="cover" />
 
-      <SafeAreaView style={styles.overlaySafe}>
+      {/* A translucent scrim behind the close button — full-bleed photo
+          under system status bar icons needs this regardless of how
+          bright or busy the photo itself is; Instagram/TikTok/Snapchat
+          all do the same thing (usually as a gradient — this app has no
+          gradient library, so a flat scrim stands in for one). */}
+      <View style={[styles.topScrim, { height: insets.top + 64 }]} />
+
+      {/* Only the top edge goes through SafeAreaView here — the bottom
+          panel's own background handles its edge manually (below) so it
+          can extend into the unsafe/gesture-nav zone instead of leaving
+          a hard cutoff right where that zone begins. */}
+      <SafeAreaView style={styles.overlaySafe} edges={["top"]}>
         <Pressable style={styles.closeButton} onPress={() => router.back()}>
           <Ionicons name="close" size={26} color="#fff" />
         </Pressable>
 
         <View style={styles.spacer} />
 
-        <View style={styles.bottomPanel}>
+        <View style={[styles.bottomPanel, { paddingBottom: 16 + insets.bottom }]}>
           <View style={styles.authorRow}>
             <Text style={styles.author}>{shortAddress(post.authorPubkey)}</Text>
-            {post.hasSgt && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>Seeker ✓</Text>
-              </View>
-            )}
+            {post.hasSgt && <SeekerBadge />}
           </View>
           <Text style={styles.timestamp}>
             {new Date(post.capturedAtMs).toLocaleString()}
@@ -143,6 +152,13 @@ const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: "center", justifyContent: "center", padding: 32 },
   info: { color: "#fff", textAlign: "center" },
 
+  topScrim: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(0,0,0,0.35)",
+  },
   closeButton: {
     margin: 16,
     width: 40,
@@ -162,15 +178,6 @@ const styles = StyleSheet.create({
   },
   authorRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   author: { color: "#fff", fontSize: 16, fontFamily: "monospace", fontWeight: "700" },
-  badge: {
-    backgroundColor: "rgba(42,33,64,0.85)",
-    borderColor: "#8a6fe8",
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  badgeText: { color: "#c9bbfb", fontSize: 11, fontWeight: "600" },
   timestamp: { color: "#e5e5ea", fontSize: 13 },
   link: { color: "#cfe4ff", fontSize: 14, marginTop: 4 },
 

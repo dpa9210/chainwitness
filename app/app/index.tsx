@@ -4,11 +4,11 @@ import {
   FlatList,
   Pressable,
   RefreshControl,
-  SafeAreaView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { router, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -16,6 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { fetchFeed, type FeedPost } from "../src/api";
 import { setFeedCache } from "../src/feedCache";
 import { toFriendlyMessage } from "../src/friendlyError";
+import { SeekerBadge } from "../src/SeekerBadge";
 
 function shortAddress(address: string): string {
   return `${address.slice(0, 4)}…${address.slice(-4)}`;
@@ -29,11 +30,7 @@ function PostCard({ post }: { post: FeedPost }) {
     >
       <View style={styles.cardHeader}>
         <Text style={styles.author}>{shortAddress(post.authorPubkey)}</Text>
-        {post.hasSgt && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>Seeker ✓</Text>
-          </View>
-        )}
+        {post.hasSgt && <SeekerBadge />}
       </View>
 
       <View style={styles.photoWrap}>
@@ -56,6 +53,7 @@ function PostCard({ post }: { post: FeedPost }) {
 }
 
 export default function FeedScreen() {
+  const insets = useSafeAreaInsets();
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -85,7 +83,12 @@ export default function FeedScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safe}>
+    // Only the top edge is handled by SafeAreaView's own padding — the
+    // bottom edge is handled manually on bottomBar below, so that bar's
+    // background can extend all the way to the true screen edge instead
+    // of leaving a plain gap under it (SafeAreaView's own inset padding
+    // would otherwise just add blank space after the bar, not inside it).
+    <SafeAreaView style={styles.safe} edges={["top"]}>
       <View style={styles.topBar}>
         <Text style={styles.wordmark}>ChainWitness</Text>
       </View>
@@ -117,7 +120,7 @@ export default function FeedScreen() {
         />
       )}
 
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { height: 64 + insets.bottom, paddingBottom: insets.bottom }]}>
         <Pressable style={styles.tabButton} onPress={() => load(true)}>
           <Ionicons name="home" size={26} color="#fff" />
         </Pressable>
@@ -169,15 +172,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   author: { color: "#fff", fontSize: 14, fontFamily: "monospace", fontWeight: "700" },
-  badge: {
-    backgroundColor: "rgba(42,33,64,0.85)",
-    borderColor: "#8a6fe8",
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  badgeText: { color: "#c9bbfb", fontSize: 11, fontWeight: "600" },
 
   photoWrap: { backgroundColor: "#0d0d12" },
   photo: { width: "100%", aspectRatio: 4 / 5 },
@@ -196,7 +190,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-evenly",
-    height: 64,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: "rgba(255,255,255,0.1)",
     backgroundColor: "#0d0d12",

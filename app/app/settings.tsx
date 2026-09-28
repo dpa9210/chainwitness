@@ -3,12 +3,12 @@ import {
   ActivityIndicator,
   Alert,
   Button,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
 
 import { toFriendlyMessage } from "../src/friendlyError";
@@ -103,7 +103,10 @@ export default function SettingsScreen() {
   const needsFunds = balance !== null && balance <= 0;
 
   return (
-    <SafeAreaView style={styles.safe}>
+    // This screen keeps its native header, which already sits below the
+    // status bar — only the bottom edge needs handling here (top edge
+    // handling would double up with the header's own spacing).
+    <SafeAreaView style={styles.safe} edges={["bottom"]}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.card}>
           <Text style={styles.label}>Wallet</Text>

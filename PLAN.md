@@ -211,6 +211,40 @@ itself couldn't be shown a screen. Never claim "unfakeable."
         instead of content sitting directly on the same background as
         everything else.
 
+      **2026-09-28, second device-test pass — a systemic bug across every
+      screen, plus the Genesis Token badge icon:**
+      - **Bug, affecting every screen**: `SafeAreaView` was imported from
+        `"react-native"` everywhere, not `"react-native-safe-area-context"`.
+        RN's own built-in `SafeAreaView` is effectively a no-op on
+        Android — it only does anything on iOS — so every screen's top
+        content sat flush under the status bar (the Home title mixing
+        with notification icons; the post detail screen's close button
+        and photo crowding the status bar/camera cutout) and bottom
+        content sat flush against the gesture-nav zone (the tip button
+        "too far at the bottom"). Fixed across all four screens
+        (`index.tsx`, `settings.tsx`, `capture.tsx`, `post/[id].tsx`) by
+        importing `SafeAreaView`/`useSafeAreaInsets` from
+        `react-native-safe-area-context` instead — the package
+        `capture.tsx` was already correctly using for its shutter/close
+        button positioning, which is why that screen didn't show the bug.
+        Also added a translucent top scrim behind the post detail
+        screen's close button, since full-bleed photo under system UI is
+        a standard pattern (Instagram/TikTok/Snapchat all do it) but
+        normally paired with a scrim/gradient for legibility against
+        arbitrary photo content, which was missing.
+      - **Genesis Token badge icon**: replaced the plain "Seeker ✓" text
+        checkmark with the actual Solana logomark (`src/SeekerBadge.tsx`,
+        asset at `app/assets/badges/solana-mark.png`) — sourced from
+        Solana Labs' own `token-list` GitHub repo (the standard wrapped-
+        SOL token icon), background keyed out to transparent since the
+        source asset ships on solid black. No Seeker-specific logo was
+        used — Solana Mobile doesn't publish one as a generic icon-font
+        glyph or open asset the way Solana's own mark is commonly used
+        across the ecosystem.
+      - No new native module this round (`react-native-safe-area-context`
+        was already linked; a static PNG needs no native code) — no
+        rebuild needed, confirmed via `expo-doctor`.
+
 ### Explicitly out of scope
 - No custom Anchor program — a memo transaction is sufficient proof of
   "meaningful Solana interaction" for this submission.
