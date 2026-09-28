@@ -75,6 +75,9 @@ export function toFriendlyMessage(err: unknown): string {
   if (/no photo uri/i.test(message)) {
     return "The camera didn't capture a photo. Please try again.";
   }
+  if (/mainnet|wrong cluster|wrong network/i.test(message)) {
+    return "Your wallet app is set to Mainnet, but ChainWitness runs on Devnet. Open your wallet app (not ChainWitness) and switch its network to Devnet, then try again.";
+  }
 
   if (/network request failed|ECONNRESET|ETIMEDOUT|fetch/i.test(message)) {
     return "Couldn't reach the Solana network. Check your connection and try again.";

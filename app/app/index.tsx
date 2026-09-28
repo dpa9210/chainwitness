@@ -36,12 +36,14 @@ function PostCard({ post }: { post: FeedPost }) {
         )}
       </View>
 
-      <Image
-        source={post.imageUrl}
-        style={styles.photo}
-        contentFit="cover"
-        transition={150}
-      />
+      <View style={styles.photoWrap}>
+        <Image
+          source={post.imageUrl}
+          style={styles.photo}
+          contentFit="cover"
+          transition={150}
+        />
+      </View>
 
       <View style={styles.cardFooter}>
         <Text style={styles.timestamp}>
@@ -145,14 +147,26 @@ const styles = StyleSheet.create({
   },
   wordmark: { color: "#fff", fontSize: 18, fontWeight: "700" },
 
-  list: { paddingVertical: 12 },
-  card: { marginBottom: 20 },
+  // Each post is a genuine card — its own background a shade lighter than
+  // the screen, rounded, with real spacing between cards — rather than
+  // edge-to-edge content sitting directly on the same dark background as
+  // everything else, which made it hard to tell where one post ended and
+  // the next began.
+  list: { paddingVertical: 12, paddingHorizontal: 12 },
+  card: {
+    backgroundColor: "#16161f",
+    borderRadius: 18,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255,255,255,0.08)",
+    marginBottom: 16,
+    overflow: "hidden",
+  },
   cardHeader: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    paddingHorizontal: 16,
-    paddingBottom: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
   author: { color: "#fff", fontSize: 14, fontFamily: "monospace", fontWeight: "700" },
   badge: {
@@ -165,16 +179,17 @@ const styles = StyleSheet.create({
   },
   badgeText: { color: "#c9bbfb", fontSize: 11, fontWeight: "600" },
 
-  photo: { width: "100%", aspectRatio: 4 / 5, backgroundColor: "#17171f" },
+  photoWrap: { backgroundColor: "#0d0d12" },
+  photo: { width: "100%", aspectRatio: 4 / 5 },
 
   cardFooter: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingTop: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
-  timestamp: { color: "#7a7a88", fontSize: 12 },
+  timestamp: { color: "#9a9aa8", fontSize: 12 },
   tapHint: { color: "#7ab8ff", fontSize: 12 },
 
   bottomBar: {
