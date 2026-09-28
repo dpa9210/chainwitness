@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { scheduleOnRN } from "react-native-worklets";
 import { CameraView, type CameraType, useCameraPermissions } from "expo-camera";
 import { router, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -82,8 +83,17 @@ export default function CaptureScreen() {
   const [torch, setTorch] = useState(false);
   const [zoom, setZoom] = useState(0);
 
+  // Gesture callbacks run as worklets on the UI thread (this project's
+  // babel-preset-expo pulls in the reanimated/worklets transform for
+  // expo-router's own animations) — calling a plain React state setter
+  // directly from there crashes with "[Worklets] Tried to synchronously
+  // call a Remote Function". scheduleOnRN hops back to the JS thread first.
+  const updateZoom = (scaleChange: number) => {
+    setZoom((current) => Math.min(1, Math.max(0, current + (scaleChange - 1))));
+  };
+
   const pinchGesture = Gesture.Pinch().onChange((event) => {
-    setZoom((current) => Math.min(1, Math.max(0, current + (event.scaleChange - 1))));
+    scheduleOnRN(updateZoom, event.scaleChange);
   });
 
   const handleFlipCamera = () => {
