@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -14,6 +14,8 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { scheduleOnRN } from "react-native-worklets";
+import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
+import * as Haptics from "expo-haptics";
 import { CameraView, type CameraType, useCameraPermissions } from "expo-camera";
 import { router, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -24,6 +26,7 @@ import { toFriendlyMessage } from "../src/friendlyError";
 import { confirmTransaction, explorerUrl } from "../src/solanaClient";
 import { type ThemeColors } from "../src/theme";
 import { useTheme } from "../src/themeContext";
+import { useStreak } from "../src/useStreak";
 import { useWallet } from "../src/walletContext";
 import { withTimeout } from "../src/withTimeout";
 
@@ -60,6 +63,21 @@ export default function CaptureScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const { streak, refreshStreak } = useStreak();
+
+  // Tactile press feedback on the shutter — scales down on press-in, springs
+  // back on release, same as a physical camera-app shutter button.
+  const shutterScale = useSharedValue(1);
+  const shutterAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: shutterScale.value }],
+  }));
+
+  // The success checkmark pops in with a small spring rather than just
+  // appearing, so the "it worked" moment actually reads as one.
+  const checkmarkScale = useSharedValue(0);
+  const checkmarkAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: checkmarkScale.value }],
+  }));
 
   // CameraView is only ever mounted while this screen is genuinely the
   // focused, visible route (see the render below) — connecting a wallet
@@ -97,6 +115,7 @@ export default function CaptureScreen() {
   });
 
   const handleFlipCamera = () => {
+    Haptics.selectionAsync().catch(() => {});
     setFacing((current) => (current === "back" ? "front" : "back"));
     // Front cameras generally don't have a physical flash, and the two
     // lenses' fields of view differ enough that a carried-over zoom level
@@ -114,6 +133,14 @@ export default function CaptureScreen() {
   const [error, setError] = useState<string | null>(null);
   const [feedStatus, setFeedStatus] = useState<FeedStatus>("idle");
   const [feedError, setFeedError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Reanimated's SharedValue.value is a deliberate mutation escape hatch,
+    // not a normal React ref; the lint rule doesn't know that.
+    // eslint-disable-next-line react-hooks/immutability
+    checkmarkScale.value =
+      feedStatus === "uploaded" ? withSpring(1, { damping: 9, stiffness: 200 }) : 0;
+  }, [feedStatus, checkmarkScale]);
 
   if (!account) {
     return (
@@ -149,6 +176,7 @@ export default function CaptureScreen() {
 
   const handleCapture = async () => {
     if (!cameraRef.current) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     setStage("processing");
     setError(null);
     try {
@@ -197,6 +225,8 @@ export default function CaptureScreen() {
           txSignature: sig,
         });
         setFeedStatus("uploaded");
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        refreshStreak(account.publicKey.toBase58());
       } catch (err) {
         console.warn("[ChainWitness] feed upload failed:", err);
         setFeedStatus("failed");
@@ -270,7 +300,9 @@ export default function CaptureScreen() {
               )}
               {feedStatus === "uploaded" && (
                 <>
-                  <Ionicons name="checkmark-circle" size={18} color={colors.success} />
+                  <Animated.View style={checkmarkAnimatedStyle}>
+                    <Ionicons name="checkmark-circle" size={18} color={colors.success} />
+                  </Animated.View>
                   <Text style={[styles.value, styles.successText]}>Post successful</Text>
                 </>
               )}
@@ -285,6 +317,14 @@ export default function CaptureScreen() {
               <Text style={styles.warning}>
                 {feedError} The on-chain proof above is still valid either way.
               </Text>
+            )}
+            {feedStatus === "uploaded" && streak !== null && streak > 0 && (
+              <Animated.View style={[styles.streakRow, checkmarkAnimatedStyle]}>
+                <Ionicons name="flame" size={16} color="#ff9f45" />
+                <Text style={styles.streakText}>
+                  {streak === 1 ? "1-day streak — you're started" : `${streak}-day streak`}
+                </Text>
+              </Animated.View>
             )}
           </View>
 
@@ -347,17 +387,30 @@ export default function CaptureScreen() {
           {facing === "back" && (
             <Pressable
               style={[styles.flashButton, { top: insets.top + 12 }]}
-              onPress={() => setTorch((t) => !t)}
+              onPress={() => {
+                Haptics.selectionAsync().catch(() => {});
+                setTorch((t) => !t);
+              }}
             >
               <Ionicons name={torch ? "flash" : "flash-off"} size={22} color="#fff" />
             </Pressable>
           )}
 
           <Pressable
-            style={[styles.shutter, { bottom: insets.bottom + 48 }]}
+            style={[styles.shutterTouchable, { bottom: insets.bottom + 48 }]}
+            onPressIn={() => {
+              // eslint-disable-next-line react-hooks/immutability -- see note above
+              shutterScale.value = withTiming(0.88, { duration: 90 });
+            }}
+            onPressOut={() => {
+              // eslint-disable-next-line react-hooks/immutability -- see note above
+              shutterScale.value = withTiming(1, { duration: 120 });
+            }}
             onPress={handleCapture}
           >
-            <View style={styles.shutterInner} />
+            <Animated.View style={[styles.shutter, shutterAnimatedStyle]}>
+              <View style={styles.shutterInner} />
+            </Animated.View>
           </Pressable>
 
           <Pressable
@@ -443,9 +496,16 @@ function createStyles(colors: ThemeColors) {
     // A camera-app-style circular shutter, floating above the bottom edge
     // (not flush against it) so it's comfortable to reach and doesn't sit
     // under a device's gesture bar.
-    shutter: {
+    shutterTouchable: {
       position: "absolute",
       alignSelf: "center",
+      width: SHUTTER_SIZE,
+      height: SHUTTER_SIZE,
+    },
+    // The animated (scale-on-press) visual circle, sized to fill its
+    // touchable parent exactly — press feedback lives here, not on the
+    // Pressable itself, since Reanimated needs its own Animated.View.
+    shutter: {
       width: SHUTTER_SIZE,
       height: SHUTTER_SIZE,
       borderRadius: SHUTTER_SIZE / 2,
@@ -474,6 +534,8 @@ function createStyles(colors: ThemeColors) {
     value: { color: colors.text, fontSize: 13, fontFamily: "monospace" },
     link: { color: colors.link, fontSize: 13, marginTop: 8 },
     statusRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+    streakRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8 },
+    streakText: { color: "#ff9f45", fontSize: 13, fontWeight: "700" },
     successText: { color: colors.success, fontWeight: "700" },
     warning: { color: colors.warning, fontSize: 12, marginTop: 8 },
     note: { color: colors.textMuted, fontSize: 12, marginBottom: 16 },
