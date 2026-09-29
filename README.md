@@ -183,7 +183,7 @@ Redis, deployment) and `PLAN.md` for the complete build history.
 
 ## Links
 
-- **Pitch deck**: https://claude.ai/artifact/6TT2CMmP1jvsYfYW1Eqfbd
+- **Pitch deck**: https://dpa9210.github.io/chainwitness/pitch-deck.html
 - **Live backend**: https://chainwitness-api.vercel.app
 - **Latest APK**: https://github.com/dpa9210/chainwitness/releases/latest/download/ChainWitness.apk
 
