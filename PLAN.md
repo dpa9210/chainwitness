@@ -1,7 +1,7 @@
 # ChainWitness — Build Plan
 
 **Target:** Solana Mobile hackathon submission
-**Deadline:** ~Oct 3–4, 2026 (confirm exact date/time and lock it in below)
+**Deadline:** 9 Oct 2026, 07:59 BST
 **Devices:** Solana Seeker (primary/demo) + secondary Android phone (fallback wallet testing)
 **Stack:** React Native (Expo dev build) + Vercel backend + Solana Devnet
 
@@ -9,13 +9,14 @@
 
 ## 1. Concept recap
 
-A daily-prompt social app. Once a day, at an unpredictable time, the user gets
-a notification to take a photo. The photo is captured in-app only (no gallery
+A daily-prompt social app. Once a day, at an unpredictable time, I get a
+notification to take a photo. The photo is captured in-app only (no gallery
 uploads), hashed, and the hash + timestamp (+ optional location) is signed by
-the user's wallet via Mobile Wallet Adapter — using Seed Vault on the Seeker.
-The signed record is published on-chain as proof the wallet posted that exact
-content at that exact time. Friends see the post in a simple feed and can tip
-SOL.
+my wallet via Mobile Wallet Adapter — using Seed Vault on the Seeker. The
+signed record is published on-chain as proof the wallet posted that exact
+content at that exact time. Posts show up in an open feed anyone can browse
+— no wallet needed just to look — and anyone who likes a post can tip it in
+SOL, straight to the poster's wallet, no middleman.
 
 **Pitch line:** "Hardware-signed authenticity in a world of AI-generated content."
 **Honest framing:** proves *wallet + content hash + time*, not that the camera
@@ -26,7 +27,12 @@ itself couldn't be shown a screen. Never claim "unfakeable."
 ## 2. Scope tiers
 
 ### Must ship (Tier A — the actual submission)
-- [ ] Android APK, builds and installs on both phones.
+- [x] Android APK, builds and installs on both phones.
+      **Signed release build done.** Real keystore (not the debug one),
+      distributed as a GitHub Release asset with a permanent download URL
+      so anyone can grab it straight from the README. Verified standalone
+      on the Seeker — full uninstall, fresh install of the actual release
+      APK (no Metro, no dev server), launches cold and works.
 - [x] Wallet connect via Mobile Wallet Adapter (Seed Vault on Seeker, fallback
       wallet app — e.g. Phantom/Solflare — on the secondary phone, devnet).
       **Verified 2026-09-27**: connect + message signing confirmed working
@@ -81,7 +87,9 @@ itself couldn't be shown a screen. Never claim "unfakeable."
       wallet (same no-custody `authorizeAndSend` core the proof flow uses,
       refactored out so both share the fee-payer self-healing logic
       instead of duplicating it). Hidden on your own posts; prompts to
-      connect first if no wallet is active. Not yet confirmed on-device.
+      connect first if no wallet is active. **Confirmed on-device** —
+      tipped a real post from a second wallet, SOL landed, success
+      haptic fires on confirmation.
 - [x] Seeker Genesis Token check → badge on posts from Genesis Token
       holders. **Built 2026-09-27** (`server/lib/sgt.ts`, checked once at
       post-creation time, stored on the post record as `hasSgt`, rendered
@@ -221,15 +229,19 @@ itself couldn't be shown a screen. Never claim "unfakeable."
       permanent initial route, so this genuinely only runs once per
       install). Fails open on a storage error (treats it as "already
       seen") so a broken read can never trap someone on the intro forever.
-      Tap-through rather than a real swipe pager, to avoid a new native
-      pager-view dependency for three slides. Settings gained a "Replay
-      intro screen" button (About section) so it can be revisited for a
-      demo without clearing app data. Pure JS, no rebuild needed.
+      Next button plus a swipe gesture left/right between slides (reuses
+      gesture-handler/worklets, already a dependency by the time this got
+      added — no separate pager-view package needed). Settings gained a
+      "Replay intro screen" button (About section) so it can be revisited
+      for a demo without clearing app data. Last slide's copy originally
+      said "Friends can send SOL..." — caught that there's no friends
+      system or search anywhere in the app, just an open feed, so fixed
+      it to "Anyone browsing the feed can send SOL...".
 
 - [x] Custom wordmark typeface + native splash screen. **Built 2026-09-28** —
-      presented 3 font drafts (Space Grotesk / Chakra Petch / Orbitron) as
-      an Artifact for a side-by-side comparison before committing to one;
-      user picked **Chakra Petch** (cut-corner tech/crypto letterforms).
+      compared 3 font options side by side (Space Grotesk / Chakra Petch /
+      Orbitron) before committing to one; picked **Chakra Petch**
+      (cut-corner tech/crypto letterforms).
       - `@expo-google-fonts/chakra-petch` loaded via `useFonts` in the root
         layout; applied to the two literal "ChainWitness" wordmark
         instances (`index.tsx` home title, `onboarding.tsx`). Not applied
@@ -276,8 +288,8 @@ itself couldn't be shown a screen. Never claim "unfakeable."
 - [x] App icon. **Built 2026-09-28** — same drafting-before-committing
       process as the wordmark: generated 4 concepts (CW monogram on
       purple / CW monogram on dark / camera-aperture mark / shield+check
-      seal) with Python/PIL, presented as an Artifact gallery including a
-      simulated-home-screen-row preview at actual icon size. User picked
+      seal) with Python/PIL, compared them side by side including a
+      simulated-home-screen-row preview at actual icon size, and picked
       **Option 1 (CW monogram, white on purple)**. Built out the full
       Android adaptive-icon set: flat `icon.png` (purple bg + glyph, iOS/
       fallback), a transparent-background foreground layer sized within
@@ -309,10 +321,12 @@ itself couldn't be shown a screen. Never claim "unfakeable."
       it fixed this time, not just by inspecting the generated asset file.
 
 ### Should have (only after Tier A is fully working end-to-end)
-- [ ] Streak counter for consecutive daily posts.
-- [ ] Nicer feed/animation polish, haptics on capture + sign success.
-- [x] Visual polish pass. **Built 2026-09-27**: TikTok-style redesign, by
-      user request, once the backend + feed were confirmed working —
+- [x] Streak counter for consecutive daily posts. Built, verified on-device.
+- [x] Camera controls (pinch-to-zoom, flash toggle, front/back flip),
+      nicer feed/animation polish, haptics on capture + sign success. All
+      built and verified on-device on both phones.
+- [x] Visual polish pass. **Built 2026-09-27**: TikTok-style redesign, once
+      the backend + feed were confirmed working —
       - **Feed is now the app's front door** (`app/index.tsx`): a
         full-screen vertical pager (one post per screen, snap-to-page),
         photo filling the whole screen, no native header. Author, badge,
@@ -325,7 +339,8 @@ itself couldn't be shown a screen. Never claim "unfakeable."
         only needs `expo-font`, already linked since Day 1.
       - **Settings screen** (`app/settings.tsx`, new): wallet
         connect/reconnect, balance + airdrop, and the debug log/sign-test
-        tools all moved here, out of the feed entirely, per user request.
+        tools all moved here, out of the feed entirely — wanted the feed
+        itself to be just photos, nothing else.
       - `app/feed.tsx` retired — its content became the new `index.tsx`.
       - Status bar set to light content + `userInterfaceStyle: "dark"`
         app-wide, so system UI doesn't disappear against the dark,
@@ -357,8 +372,8 @@ itself couldn't be shown a screen. Never claim "unfakeable."
         `CameraView` mounting on `useFocusEffect`-tracked screen focus in
         addition to `account`, so the camera is only ever created while
         the screen is genuinely visible.
-      - **Design pivot, by user request**: the TikTok-style one-post-per-
-        screen swipe pager didn't fit — moved to an **Instagram-style**
+      - **Design pivot**: decided the TikTok-style one-post-per-screen
+        swipe pager didn't fit — moved to an **Instagram-style**
         scrollable feed instead. `app/index.tsx` is back to a normal
         scrolling list of cards (author row above a 4:5 photo, tap
         anywhere to open); a new dynamic route `app/post/[id].tsx` shows
@@ -368,7 +383,7 @@ itself couldn't be shown a screen. Never claim "unfakeable."
         (`src/feedCache.ts`) populated when the feed loads, rather than a
         new backend endpoint — noted as the thing to build properly if
         deep-linking to a single post ever becomes a real requirement.
-      - **Capture screen redesigned** per explicit feedback: the camera
+      - **Capture screen redesigned**: the camera
         preview is now genuinely full-bleed (no padded container), with a
         circular camera-app-style shutter button floating above the
         bottom edge (safe-area inset + extra margin) instead of a plain
@@ -439,25 +454,31 @@ itself couldn't be shown a screen. Never claim "unfakeable."
 ### Explicitly out of scope
 - No custom Anchor program — a memo transaction is sufficient proof of
   "meaningful Solana interaction" for this submission.
-- No public/open feed — invite-only / friends-list only, to sidestep content
-  moderation entirely.
 - No background/server-triggered push notifications requiring a push
   infra build-out — a local notification scheduled on-device is enough for
   the demo.
+- No friend-list / invite system. The original plan (see concept recap)
+  assumed a friends-only feed to sidestep moderation, but there's no
+  search or social graph anywhere in the app to make "friends" mean
+  anything — so it made more sense to just build one open feed anyone
+  can browse, and let anyone who finds a post tip it. Simpler to build
+  too. Onboarding copy originally still said "Friends can tip you" from
+  the old plan — caught and fixed that once I noticed it didn't match
+  what was actually shipped.
 
 ---
 
-## 3. Day-by-day plan (adjust once deadline is confirmed)
+## 3. Day-by-day plan (as it actually went — didn't stay strictly to a fixed schedule)
 
 | Day | Focus |
 |---|---|
 | 1 | ✅ **Spike done**: Expo dev build scaffold, MWA wallet connect + message signing verified working (Phantom, real device). |
-| 2 | ✅ Camera capture screen + local SHA-256 hashing + MWA signing built (needs on-device verification). Backend skeleton on Vercel is next. |
-| 3 | Wire capture → sign → submit-to-backend → memo tx on devnet. First end-to-end post. |
-| 4 | Feed screen (read posts from backend), wallet badges, Genesis Token check. |
-| 5 | Tip flow (SOL transfer via MWA). Local daily-prompt notification. Polish pass on UI. |
-| 6 | Full device testing on both phones. Fix rough edges. Record demo footage. |
-| 7 | Edit demo video, write pitch deck, finalize README, build release APK, submit. |
+| 2 | ✅ Camera capture screen + local SHA-256 hashing + MWA signing built and verified on-device. Backend skeleton on Vercel stood up. |
+| 3 | ✅ Wired capture → sign → submit-to-backend → memo tx on devnet. First real end-to-end post, verified working with real data, not a synthetic test. |
+| 4 | ✅ Feed screen (reads posts from the backend), Genesis Token badge, tip flow. TikTok-style redesign then pivoted to the Instagram-style scrollable feed that shipped. |
+| 5 | ✅ Local daily-prompt notification, light/dark theme, onboarding screen, custom wordmark + splash screen + app icon, full UX polish pass. |
+| 6 | ✅ Camera controls (pinch-zoom, flash, flip), streak counter, haptics, animation polish. Full device testing across both phones, rough edges fixed (SafeAreaView bug, stale-install SIGSEGV, worklets crash). |
+| 7 | ✅ Signed release keystore + release APK, distributed via a GitHub Release with a permanent download link. README written. History-purged two files that shouldn't have been in the public repo (a real secret, and an unrelated abandoned project's planning doc). Pitch deck built and self-hosted via GitHub Pages. **Still to do: demo video**, before the 9 Oct 2026, 07:59 BST deadline. |
 
 ---
 
@@ -474,12 +495,14 @@ itself couldn't be shown a screen. Never claim "unfakeable."
         │
         │  (upload photo + metadata, for feed only — not for proof)
         ▼  HTTPS
-[ Vercel backend — not yet built ]
-   ├── POST /api/posts  → store { photoUrl, hash, timestamp, txSignature,
-   │                       author } for the feed
-   ├── GET  /api/feed   → return friends' posts
-   └── (Genesis Token check — likely a mainnet RPC call, separate from the
-       devnet app logic)
+[ Vercel backend — live at https://chainwitness-api.vercel.app ]
+   ├── POST /api/posts  → independently re-verifies the tx against devnet
+   │                       before storing { photoUrl, hash, timestamp,
+   │                       txSignature, author } for the feed
+   ├── GET  /api/feed   → return recent posts, newest first — open to
+   │                       anyone, no auth needed
+   └── Genesis Token check — mainnet RPC call, checked once at
+       post-creation time, stored on the record
         │
         ▼
 [ Solana Devnet ] ← already reachable directly from the app, verified working
@@ -487,16 +510,17 @@ itself couldn't be shown a screen. Never claim "unfakeable."
        by anyone via getTransaction, independent of our backend
 ```
 
-**Resolved (was the Day 1 open decision):** the user's own wallet signs and
-sends the memo transaction directly — confirmed working end-to-end from the
-app. The backend never sees or needs a signing key; it exists purely to
-support the feed (photo storage + listing), not to verify or relay proof.
+**Resolved (was the Day 1 open decision):** my own wallet signs and sends
+the memo transaction directly — confirmed working end-to-end from the app.
+The backend never sees or needs a signing key; it exists purely to support
+the feed (photo storage + listing), not to verify or relay proof.
 
 ---
 
-## 5. Dependencies (to be pinned/verified on Day 1)
+## 5. Dependencies
 
 ### App
+Day 1 starting list:
 - `@solana-mobile/mobile-wallet-adapter-protocol` + web3.js companion package
 - `@solana/web3.js`
 - `expo-camera`
@@ -504,10 +528,16 @@ support the feed (photo storage + listing), not to verify or relay proof.
 - `react-native-get-random-values` (polyfill)
 - `buffer`
 
+Grew over the build to also include: `react-native-reanimated`,
+`react-native-gesture-handler`, `react-native-worklets` (camera controls,
+onboarding swipe), `expo-haptics`, `@react-native-async-storage/async-storage`
+(theme + onboarding persistence), `expo-splash-screen`,
+`@expo-google-fonts/chakra-petch`, `@expo/vector-icons`, `expo-image`.
+
 ### Backend (Vercel)
-- `@solana/web3.js`
-- `@solana/spl-memo` (or manual memo program instruction)
-- Hosted Postgres/KV for post + user records
+- `@solana/web3.js` (server-side re-verification against devnet)
+- Vercel Blob (photo storage)
+- Upstash Redis (post metadata)
 
 ---
 
@@ -525,11 +555,12 @@ support the feed (photo storage + listing), not to verify or relay proof.
 
 ## 7. Submission checklist
 
-- [ ] Functional Android APK (release build)
-- [ ] GitHub repo with source
+- [x] Functional Android APK (release build, signed, distributed via
+      GitHub Release, verified standalone on-device)
+- [x] GitHub repo with source, README with download link and full docs
 - [ ] Demo video (in-app capture → sign → on-chain proof → tip, plus a beat
-      showing the Genesis Token badge)
-- [ ] Pitch deck / brief presentation
+      showing the Genesis Token badge) — **the one thing left**
+- [x] Pitch deck / brief presentation (self-hosted on GitHub Pages)
 
 ---
 
@@ -537,9 +568,9 @@ support the feed (photo storage + listing), not to verify or relay proof.
 
 Repo: https://github.com/dpa9210/chainwitness
 
-| Criterion | Implication for how we build |
+| Criterion | Implication for how I build |
 |---|---|
-| Completion, judged from the demo video | The video is a deliverable in its own right — script it early (Day 5–6), not improvised at the end. Every Tier A checklist item needs a clean beat in the video. |
+| Completion, judged from the demo video | The video is a deliverable in its own right, not an afterthought — script it, don't improvise it at the end. Every Tier A checklist item needs a clean beat in the video. |
 | Technical depth, judged from GitHub commits | Commit in small, meaningful, honestly-described increments as each piece lands (not one end-of-project dump). No squashing/force-push once pushed — a real, readable history is the point. |
 | Mobile-optimized UX & use of mobile features | Raises "should have" items (haptics, in-app camera-first flow, local notifications, share sheet) to load-bearing, not optional polish. Lean on what only a phone can do: camera, push, biometric-gated Seed Vault signing. |
 | Usage & interaction with Solana network | Confirms the Day 1 architectural call: the **user's own wallet** signs and sends the on-chain memo transaction directly — no backend relay/custody. That's the clearest "real network interaction" story, and it's simpler to build too. |
@@ -547,7 +578,11 @@ Repo: https://github.com/dpa9210/chainwitness
 
 ---
 
-## Open items to confirm with user
-- Exact deadline date + time (timezone).
-- Invite-list mechanism for "friends" — hardcoded devnet pubkey list for the
-  demo is fine; no need for a real friend-request system in this timeframe.
+## 9. What's left
+
+Everything in Tier A and the "should have" tier is built and verified on
+both physical devices, the release APK is signed and distributed via
+GitHub Releases, and the README + pitch deck are live. The one thing
+outstanding before the **9 Oct 2026, 07:59 BST** deadline is the **demo
+video** — capture → sign → on-chain proof → tip, plus a beat on the
+Genesis Token badge, per the judging-criteria note in section 8.
