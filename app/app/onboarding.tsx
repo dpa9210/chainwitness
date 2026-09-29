@@ -3,6 +3,8 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { scheduleOnRN } from "react-native-worklets";
 
 import { markOnboardingComplete } from "../src/onboarding";
 import { type ThemeColors } from "../src/theme";
@@ -28,15 +30,16 @@ const SLIDES: Slide[] = [
   {
     icon: "cash-outline",
     title: "Get tipped for what you share",
-    body: "Friends can send SOL straight to your wallet for posts they love — no middleman. Seeker Genesis Token holders get a badge that shows right on their posts.",
+    body: "Anyone browsing the feed can send SOL straight to your wallet for a post they love — no middleman. Seeker Genesis Token holders get a badge that shows right on their posts.",
   },
 ];
 
 /**
  * First-run intro, shown once (gated by src/onboarding.ts, checked from the
- * feed screen on cold start) before the feed itself. Tap-through rather than
- * a swipe gesture — avoids pulling in a pager-view native dependency for
- * three slides.
+ * feed screen on cold start) before the feed itself. Tap-through via the
+ * Next button, plus a swipe gesture (left/right) for anyone who tries the
+ * usual pager convention — reuses gesture-handler/worklets, already a
+ * dependency for capture.tsx's pinch-to-zoom, so no new native module.
  */
 export default function OnboardingScreen() {
   const { colors } = useTheme();
@@ -51,6 +54,20 @@ export default function OnboardingScreen() {
     router.replace("/");
   };
 
+  const goNext = () => setStep((s) => Math.min(s + 1, SLIDES.length - 1));
+  const goPrev = () => setStep((s) => Math.max(s - 1, 0));
+
+  const swipeGesture = Gesture.Pan()
+    .activeOffsetX([-20, 20])
+    .failOffsetY([-20, 20])
+    .onEnd((event) => {
+      if (event.translationX < -40) {
+        scheduleOnRN(goNext);
+      } else if (event.translationX > 40) {
+        scheduleOnRN(goPrev);
+      }
+    });
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.topRow}>
@@ -62,13 +79,15 @@ export default function OnboardingScreen() {
         )}
       </View>
 
-      <View style={styles.content}>
-        <View style={styles.iconWrap}>
-          <Ionicons name={slide.icon} size={40} color={colors.accent} />
+      <GestureDetector gesture={swipeGesture}>
+        <View style={styles.content}>
+          <View style={styles.iconWrap}>
+            <Ionicons name={slide.icon} size={40} color={colors.accent} />
+          </View>
+          <Text style={styles.title}>{slide.title}</Text>
+          <Text style={styles.body}>{slide.body}</Text>
         </View>
-        <Text style={styles.title}>{slide.title}</Text>
-        <Text style={styles.body}>{slide.body}</Text>
-      </View>
+      </GestureDetector>
 
       <View style={styles.footer}>
         <View style={styles.dots}>
