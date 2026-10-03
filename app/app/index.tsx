@@ -17,11 +17,13 @@ import * as Haptics from "expo-haptics";
 import { fetchFeed, type FeedPost } from "../src/api";
 import { setFeedCache } from "../src/feedCache";
 import { toFriendlyMessage } from "../src/friendlyError";
+import { OfflineBanner } from "../src/OfflineBanner";
 import { hasCompletedOnboarding } from "../src/onboarding";
 import { SeekerBadge } from "../src/SeekerBadge";
 import { StreakBadge } from "../src/StreakBadge";
 import { type ThemeColors } from "../src/theme";
 import { useTheme } from "../src/themeContext";
+import { useNetworkStatus } from "../src/useNetworkStatus";
 import { useStreak } from "../src/useStreak";
 import { useWallet } from "../src/walletContext";
 
@@ -66,6 +68,7 @@ export default function FeedScreen() {
   const { account } = useWallet();
   const accountPubkeyStr = account?.publicKey.toBase58();
   const { streak, refreshStreak } = useStreak();
+  const isOnline = useNetworkStatus();
 
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,6 +90,15 @@ export default function FeedScreen() {
   }, []);
 
   const load = useCallback(async (isRefresh: boolean) => {
+    // Offline: skip the doomed fetch entirely rather than let it fail and
+    // churn the UI — whatever's already in `posts` (this session's last
+    // successful load) just stays on screen, with the banner explaining why
+    // it's not refreshing.
+    if (isOnline === false) {
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     setError(null);
@@ -100,7 +112,7 @@ export default function FeedScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [isOnline]);
 
   useFocusEffect(
     useCallback(() => {
@@ -121,6 +133,7 @@ export default function FeedScreen() {
     // of leaving a plain gap under it (SafeAreaView's own inset padding
     // would otherwise just add blank space after the bar, not inside it).
     <SafeAreaView style={styles.safe} edges={["top"]}>
+      <OfflineBanner />
       <View style={styles.topBar}>
         <Text style={styles.wordmark}>ChainWitness</Text>
         {streak !== null && <StreakBadge days={streak} />}
@@ -146,7 +159,9 @@ export default function FeedScreen() {
           ListEmptyComponent={
             <View style={styles.centered}>
               <Text style={styles.emptyText}>
-                {error ?? "No posts yet. Be the first to post."}
+                {isOnline === false
+                  ? "You're offline — connect to load the feed."
+                  : (error ?? "No posts yet. Be the first to post.")}
               </Text>
             </View>
           }

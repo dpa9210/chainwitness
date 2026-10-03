@@ -53,6 +53,8 @@ function ThemedStack() {
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />
         <Stack.Screen name="capture" options={{ headerShown: false }} />
         <Stack.Screen name="settings" options={{ title: "Settings" }} />
+        <Stack.Screen name="about" options={{ title: "About" }} />
+        <Stack.Screen name="privacy" options={{ title: "Privacy" }} />
         <Stack.Screen name="post/[id]" options={{ headerShown: false }} />
       </Stack>
     </>

@@ -23,9 +23,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { submitPostToFeed } from "../src/api";
 import { buildSignedMessage, hashAndEncodePhoto } from "../src/contentHash";
 import { toFriendlyMessage } from "../src/friendlyError";
+import { OfflineBanner } from "../src/OfflineBanner";
 import { confirmTransaction, explorerUrl } from "../src/solanaClient";
 import { type ThemeColors } from "../src/theme";
 import { useTheme } from "../src/themeContext";
+import { useNetworkStatus } from "../src/useNetworkStatus";
 import { useStreak } from "../src/useStreak";
 import { useWallet } from "../src/walletContext";
 import { withTimeout } from "../src/withTimeout";
@@ -64,6 +66,7 @@ export default function CaptureScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { streak, refreshStreak } = useStreak();
+  const isOnline = useNetworkStatus();
 
   // Tactile press feedback on the shutter — scales down on press-in, springs
   // back on release, same as a physical camera-app shutter button.
@@ -176,6 +179,16 @@ export default function CaptureScreen() {
 
   const handleCapture = async () => {
     if (!cameraRef.current) return;
+    // Posting needs the wallet to reach devnet, and the feed upload needs
+    // our backend — both doomed offline. Check upfront rather than walking
+    // through the full capture/hash/sign flow only to hit the 90s timeout.
+    if (isOnline === false) {
+      Alert.alert(
+        "You're offline",
+        "ChainWitness needs a connection to sign and send your post on-chain. Reconnect and try again.",
+      );
+      return;
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     setStage("processing");
     setError(null);
@@ -362,6 +375,10 @@ export default function CaptureScreen() {
         <View style={StyleSheet.absoluteFill} />
       )}
 
+      <View style={[styles.offlineBannerWrap, { top: insets.top }]}>
+        <OfflineBanner />
+      </View>
+
       {stage === "processing" && (
         <View style={[StyleSheet.absoluteFill, styles.overlay]}>
           <ActivityIndicator size="large" color="#fff" />
@@ -451,6 +468,8 @@ function createStyles(colors: ThemeColors) {
       backgroundColor: "rgba(0,0,0,0.55)",
     },
     overlayText: { color: "#fff", marginTop: 12 },
+
+    offlineBannerWrap: { position: "absolute", left: 0, right: 0 },
 
     errorBanner: {
       position: "absolute",

@@ -22,6 +22,7 @@ import {
 } from "../src/dailyPrompt";
 import { toFriendlyMessage } from "../src/friendlyError";
 import { bytesToHex } from "../src/mwaClient";
+import { OfflineBanner } from "../src/OfflineBanner";
 import { getBalanceSol, requestDevnetAirdrop } from "../src/solanaClient";
 import { type ThemeColors } from "../src/theme";
 import { useTheme } from "../src/themeContext";
@@ -218,6 +219,7 @@ export default function SettingsScreen() {
     // status bar — only the bottom edge needs handling here (top edge
     // handling would double up with the header's own spacing).
     <SafeAreaView style={styles.safe} edges={["bottom"]}>
+      <OfflineBanner />
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.card}>
           <Text style={styles.label}>Wallet</Text>
@@ -365,6 +367,12 @@ export default function SettingsScreen() {
             title="Replay intro screen"
             onPress={() => router.push("/onboarding")}
           />
+        </View>
+        <View style={styles.buttonRow}>
+          <Button title="About ChainWitness" onPress={() => router.push("/about")} />
+        </View>
+        <View style={styles.buttonRow}>
+          <Button title="Privacy" onPress={() => router.push("/privacy")} />
         </View>
 
         <Text style={styles.sectionHeader}>Debug</Text>

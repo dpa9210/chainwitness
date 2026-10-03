@@ -17,10 +17,12 @@ import * as Haptics from "expo-haptics";
 
 import { toFriendlyMessage } from "../../src/friendlyError";
 import { getCachedPost } from "../../src/feedCache";
+import { OfflineBanner } from "../../src/OfflineBanner";
 import { SeekerBadge } from "../../src/SeekerBadge";
 import { DEFAULT_TIP_LAMPORTS, explorerUrl } from "../../src/solanaClient";
 import { type ThemeColors } from "../../src/theme";
 import { useTheme } from "../../src/themeContext";
+import { useNetworkStatus } from "../../src/useNetworkStatus";
 import { useWallet } from "../../src/walletContext";
 
 const TIP_SOL_LABEL = (DEFAULT_TIP_LAMPORTS / 1_000_000_000).toString();
@@ -46,10 +48,12 @@ export default function PostDetailScreen() {
   const { account, tip } = useWallet();
   const [tipStatus, setTipStatus] = useState<TipStatus>("idle");
   const [tipSignature, setTipSignature] = useState<string | null>(null);
+  const isOnline = useNetworkStatus();
 
   if (!post) {
     return (
       <SafeAreaView style={styles.safe}>
+        <OfflineBanner />
         <View style={styles.centered}>
           <Text style={styles.info}>
             Couldn&apos;t find this post — go back and open it from the feed.
@@ -71,6 +75,10 @@ export default function PostDetailScreen() {
           { text: "Go to Settings", onPress: () => router.push("/settings") },
         ],
       );
+      return;
+    }
+    if (isOnline === false) {
+      Alert.alert("You're offline", "Reconnect to send a tip.");
       return;
     }
     setTipStatus("sending");
@@ -101,6 +109,7 @@ export default function PostDetailScreen() {
           can extend into the unsafe/gesture-nav zone instead of leaving
           a hard cutoff right where that zone begins. */}
       <SafeAreaView style={styles.overlaySafe} edges={["top"]}>
+        <OfflineBanner />
         <Pressable style={styles.closeButton} onPress={() => router.back()}>
           <Ionicons name="close" size={26} color="#fff" />
         </Pressable>
