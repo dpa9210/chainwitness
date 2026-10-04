@@ -7,6 +7,7 @@
 **Hardware-signed authenticity in a world of AI-generated content.**
 
 [![Download APK](https://img.shields.io/badge/Download-ChainWitness.apk-8a6fe8?style=for-the-badge)](https://github.com/dpa9210/chainwitness/releases/latest/download/ChainWitness.apk)
+[![Watch Demo](https://img.shields.io/badge/Watch-Demo%20Video-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/IoPNh3jJsSQ)
 
 Built for the **Solana Mobile Hackathon** · Solana Devnet · Android 7.0+
 
@@ -183,6 +184,7 @@ Redis, deployment) and `PLAN.md` for the complete build history.
 
 ## Links
 
+- **Demo video**: https://youtu.be/IoPNh3jJsSQ
 - **Pitch deck**: https://dpa9210.github.io/chainwitness/pitch-deck.html
 - **Live backend**: https://chainwitness-api.vercel.app
 - **Latest APK**: https://github.com/dpa9210/chainwitness/releases/latest/download/ChainWitness.apk

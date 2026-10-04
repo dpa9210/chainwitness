@@ -478,7 +478,7 @@ itself couldn't be shown a screen. Never claim "unfakeable."
 | 4 | ✅ Feed screen (reads posts from the backend), Genesis Token badge, tip flow. TikTok-style redesign then pivoted to the Instagram-style scrollable feed that shipped. |
 | 5 | ✅ Local daily-prompt notification, light/dark theme, onboarding screen, custom wordmark + splash screen + app icon, full UX polish pass. |
 | 6 | ✅ Camera controls (pinch-zoom, flash, flip), streak counter, haptics, animation polish. Full device testing across both phones, rough edges fixed (SafeAreaView bug, stale-install SIGSEGV, worklets crash). |
-| 7 | ✅ Signed release keystore + release APK, distributed via a GitHub Release with a permanent download link. README written. History-purged two files that shouldn't have been in the public repo (a real secret, and an unrelated abandoned project's planning doc). Pitch deck built and self-hosted via GitHub Pages. **Still to do: demo video**, before the 9 Oct 2026, 07:59 BST deadline. |
+| 7 | ✅ Signed release keystore + release APK, distributed via a GitHub Release with a permanent download link. README written. History-purged two files that shouldn't have been in the public repo (a real secret, and an unrelated abandoned project's planning doc). Pitch deck built and self-hosted via GitHub Pages. Demo video recorded and posted unlisted on YouTube, linked from the README. Submission complete. |
 
 ---
 
@@ -558,8 +558,8 @@ onboarding swipe), `expo-haptics`, `@react-native-async-storage/async-storage`
 - [x] Functional Android APK (release build, signed, distributed via
       GitHub Release, verified standalone on-device)
 - [x] GitHub repo with source, README with download link and full docs
-- [ ] Demo video (in-app capture → sign → on-chain proof → tip, plus a beat
-      showing the Genesis Token badge) — **the one thing left**
+- [x] Demo video — recorded on-device, unlisted on YouTube, linked from
+      the README (https://youtu.be/IoPNh3jJsSQ)
 - [x] Pitch deck / brief presentation (self-hosted on GitHub Pages)
 
 ---
@@ -580,9 +580,7 @@ Repo: https://github.com/dpa9210/chainwitness
 
 ## 9. What's left
 
-Everything in Tier A and the "should have" tier is built and verified on
-both physical devices, the release APK is signed and distributed via
-GitHub Releases, and the README + pitch deck are live. The one thing
-outstanding before the **9 Oct 2026, 07:59 BST** deadline is the **demo
-video** — capture → sign → on-chain proof → tip, plus a beat on the
-Genesis Token badge, per the judging-criteria note in section 8.
+Everything is built, verified on both physical devices, and live: the
+release APK is signed and distributed via GitHub Releases, the README,
+pitch deck, and demo video are all linked up. Nothing outstanding before
+the **9 Oct 2026, 07:59 BST** deadline.
