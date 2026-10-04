@@ -41,6 +41,31 @@ A full pitch deck (problem, mechanism, honesty about limits, roadmap) and
 references, including an honest note on what the current timestamp model
 does and doesn't guarantee) are linked at the bottom.
 
+## Addressing AI-generated fakes: proof, not detection
+
+It would be easy to assume an app built around the problem of AI-generated
+content should itself *run* AI — a model that scores whether a photo looks
+synthetic. ChainWitness deliberately doesn't, and that's a considered
+choice, not a gap.
+
+Detecting AI-generated content after the fact is an arms race you
+structurally can't win: every improvement in detection accuracy becomes
+training signal for the next generator to evade it. A "94% confidence this
+is AI-generated" score is also the wrong kind of answer for a viewer —
+it's probabilistic, tied to whichever model produced it, quietly decays as
+generators improve, and gives a viewer nothing they can check for
+themselves.
+
+ChainWitness sidesteps that race entirely by not trying to detect fakes —
+it proves genuine content instead, at the moment of capture, with a
+cryptographic signature that doesn't degrade and doesn't need to keep pace
+with newer generative models. A viewer isn't asked to trust a model's
+opinion about a photo; they're given a public Solana transaction they can
+independently check themselves (see [PROOF.md](PROOF.md) for exactly how).
+That's a different kind of answer to the same question the "AI" track
+ultimately cares about — can a viewer trust what they're looking at — and
+we think it's the more durable one.
+
 ## Screenshots
 
 <table>
