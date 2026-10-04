@@ -36,8 +36,10 @@ wallet's key signed it, and the signature landed on-chain at that timestamp.
 **What it doesn't claim:** that the camera wasn't pointed at a screen, or
 that the scene wasn't staged. We don't use the word "unfakeable."
 
-A full pitch deck (problem, mechanism, honesty about limits, roadmap) is
-linked at the bottom.
+A full pitch deck (problem, mechanism, honesty about limits, roadmap) and
+[PROOF.md](PROOF.md) (exact hash/sign/on-chain mechanics, with file+line
+references, including an honest note on what the current timestamp model
+does and doesn't guarantee) are linked at the bottom.
 
 ## Screenshots
 
@@ -156,10 +158,12 @@ client-reported flag.
 ## Repo layout
 
 ```
-app/       React Native / Expo mobile app
-server/    Next.js backend (feed API, devnet re-verification)
-PLAN.md    Full build log — day-by-day decisions, bugs found and fixed,
-           verified-on-device notes, everything not obvious from the code
+app/        React Native / Expo mobile app
+server/     Next.js backend (feed API, devnet re-verification)
+PROOF.md    What's hashed, signed, and sent on-chain — the exact
+            verification algorithm, with file+line references
+PLAN.md     Full build log — day-by-day decisions, bugs found and fixed,
+            verified-on-device notes, everything not obvious from the code
 ```
 
 ## Running it locally
@@ -185,7 +189,9 @@ Redis, deployment) and `PLAN.md` for the complete build history.
 ## Links
 
 - **Demo video**: https://youtu.be/IoPNh3jJsSQ
-- **Pitch deck**: https://dpa9210.github.io/chainwitness/pitch-deck.html
+- **Pitch deck (PDF)**: https://dpa9210.github.io/chainwitness/pitch-deck.pdf
+- **Pitch deck (interactive)**: https://dpa9210.github.io/chainwitness/pitch-deck.html
+- **Proof architecture**: [PROOF.md](PROOF.md)
 - **Live backend**: https://chainwitness-api.vercel.app
 - **Latest APK**: https://github.com/dpa9210/chainwitness/releases/latest/download/ChainWitness.apk
 
